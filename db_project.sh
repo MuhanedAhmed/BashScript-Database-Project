@@ -4,7 +4,7 @@
 
 get_databases() {
   DATABASES=()
-  for ITEM in "$SCRIPT_DIRECTORY_FULLPATH"/*; do
+  for ITEM in ./DBs/*; do
     if [ -d "$ITEM" ]; then
       DATABASES+=("$(basename "$ITEM")")
     fi
@@ -39,7 +39,7 @@ validate_database_name() {
   fi
 
   # Check for invalid characters in the database name
-  if [[ ! $DATABASE_NAME =~ ^[a-zA-Z0-9_-]*$ ]]; then
+  if [[ $DATABASE_NAME =~ [^a-zA-Z0-9_-] ]]; then
     echo "Error: Database name can only contain alphabets, numbers, dashes and underscores !!!"
     return 1
   fi
@@ -59,6 +59,12 @@ validate_database_name() {
   return 0
 }
 
+check_databases_directory() {
+  if [ ! -d "./DBs" ]; then
+    mkdir "./DBs"
+  fi
+}
+
 # ---------------------------- Database Functions ---------------------------- #
 
 create_database() {
@@ -74,6 +80,9 @@ create_database() {
     return 1
   fi
 
+  # Replace white spaces with _
+  DB_NAME=$(echo $DB_NAME | tr ' ' '_')
+
   # Check if the database name already exists 
   check_database_exists $DB_NAME
   if [ $? -eq 0 ]; then
@@ -82,7 +91,7 @@ create_database() {
   fi
 
   # Create database directory
-  mkdir "$SCRIPT_DIRECTORY_FULLPATH/$DB_NAME"
+  mkdir "./DBs/$DB_NAME"
 
   if [ $? -eq 0 ]; then
     echo "Database '$DB_NAME' Created Successfully !!!"
@@ -120,12 +129,15 @@ drop_database() {
   echo ""
 
   read -p "Enter the Database Name: " DB_NAME
+
+  # Replace white spaces with _
+  DB_NAME=$(echo $DB_NAME | tr ' ' '_')
   
   # Check if the database name exists
   check_database_exists $DB_NAME
   
   if [ $? -eq 0 ]; then
-    rm -r "$SCRIPT_DIRECTORY_FULLPATH/$DB_NAME"
+    rm -r "./DBs/$DB_NAME"
     echo "Database '$DB_NAME' Dropped !!!"
   else
     echo "Database '$DB_NAME' Does Not Exist !!!"
@@ -139,13 +151,14 @@ connect_database() {
 
   read -p "Enter the Database Name: " DB_NAME
 
+  # Replace white spaces with _
+  DB_NAME=$(echo $DB_NAME | tr ' ' '_')
+
   # Check if the database name exists
   check_database_exists $DB_NAME
 
   if [ $? -eq 0 ]; then
-    cd "$SCRIPT_DIRECTORY_FULLPATH/$DB_NAME"
-    echo "Database '$DB_NAME' Connected !!!"
-    echo "The current working directory is : $(pwd)"
+    source table_menu.sh $DB_NAME
   else
     echo "Database '$DB_NAME' Does Not Exist !!!"
   fi
@@ -153,8 +166,7 @@ connect_database() {
 
 # ---------------------------- Start of the main program ---------------------------- #
 
-# Get the full path of the script directory
-SCRIPT_DIRECTORY_FULLPATH=$(dirname "$(realpath "$0")")
+check_databases_directory
 
 # Main Menu
 while true
@@ -175,34 +187,32 @@ do
     1)
       clear
       create_database
-      read
+      read -t 3
       ;;
     2)
       clear
       list_all_databases
-      read
+      read -t 3
       ;;
     3)
       clear
       drop_database
-      read
+      read -t 3
       ;;
     4)
       clear
       connect_database
-      read
+      read -t 3
       ;;
     5)
       clear
       echo "Bye Bye !!!"
-      read
+      read -t 3
       clear
       exit
       ;;
     *)
       clear
-      echo "Invalid Choice !!!"
-      read
       ;;
   esac
 done
