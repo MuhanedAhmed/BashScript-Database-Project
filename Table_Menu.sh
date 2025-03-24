@@ -4,7 +4,7 @@ PS3="$DB_NAME>> "
 # ---------------------------- Table Functions ---------------------------- #
 
 create_table_structure() {
-  TABLE_NAME="$1"
+  local TABLE_NAME="$1"
   clear
   echo "=== Creating Table '$TABLE_NAME' Structure ==="
   echo "----------------------------------------------"
