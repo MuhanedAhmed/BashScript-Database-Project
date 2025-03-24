@@ -2,83 +2,10 @@
 
 DB_NAME=$1
 
-# ---------------------------- Helper Functions ---------------------------- #
-
-get_tables() {
-  TABLES=()
-  for ITEM in ./DBs/$DB_NAME/*; do
-    if [ -f "$ITEM" ]; then
-      TABLES+=("$(basename "$ITEM")")
-    fi
-  done
-  echo "${TABLES[@]}"
-}
-
-check_table_exists() {
-  TABLE_NAME=$1
-  AVAILABLE_TABLES=($(get_tables))
-  for TABLE in ${AVAILABLE_TABLES[@]}; do
-    if [ "$TABLE" == "$TABLE_NAME" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
-
-check_nonzero_positive_integer() {
-  if [[ $1 =~ ^[1-9][0-9]*$ ]]; then
-    return 0
-  else
-    return 1
-  fi
-}
-
-validate_table_name() {
-  if [ -z $1 ]; then
-    echo "Error: Table Name Cannot Be Empty !!!"
-    return 1
-  fi
-
-  if [[ $1 =~ [^a-zA-Z0-9_] ]]; then
-    echo "Error: Table Name Can Only Contain Alphabets, Numbers, and Underscores !!!"
-    return 1
-  fi
-
-  return 0
-}
-
-validate_column_name() {
-  if [ -z $1 ]; then
-    echo "Error: Column Name Cannot Be Empty !!!"
-    return 1
-  fi
-
-  if [[ $1 =~ [^a-zA-Z0-9_] ]]; then
-    echo "Error: Column Name Can Only Contain Alphabets, Numbers, and Underscores !!!"
-    return 1
-  fi
-
-  return 0
-}
-
-validate_column_type() {
-  if [ -z $1 ]; then
-    echo "Error: Column Type Cannot Be Empty !!!"
-    return 1
-  fi
-
-  if [ "$1" != "num" -a "$1" != "str" -a "$1" != "date" ]; then
-    echo "Error: Invalid Column Type !!!"
-    return 1
-  fi
-
-  return 0
-}
-
 # ---------------------------- Table Functions ---------------------------- #
 
 create_table_structure() {
-  TABLE_NAME=$1
+  local TABLE_NAME="$1"
   clear
   echo "=== Creating Table '$TABLE_NAME' Structure ==="
   echo "----------------------------------------------"
@@ -106,7 +33,7 @@ create_table_structure() {
 
     # Check the column name
     read -p "Enter Column ($i) Name: " COLUMN_NAME
-    until validate_column_name $COLUMN_NAME; do
+    until validate_structure_name "Column" $COLUMN_NAME; do
       echo ""
       read -p "Enter Column ($i) Name: " COLUMN_NAME
     done
@@ -139,15 +66,18 @@ create_table_structure() {
   keys=$(IFS=":"; echo "${!COLUMNS[*]}")
   values=$(IFS=":"; echo "${COLUMNS[*]}")
 
-  # Create the table file
-  echo "$keys" >> ./DBs/$DB_NAME/$TABLE_NAME
-  echo "$values" >> ./DBs/$DB_NAME/$TABLE_NAME
+  # Creating the table metadata file
+  echo "$keys" >> ./DBs/$DB_NAME/$TABLE_NAME.meta
+  echo "$values" >> ./DBs/$DB_NAME/$TABLE_NAME.meta
 
   if [ -n "$PRIMARY_KEY" ]; then
-    echo "PRIMARY_KEY:$PRIMARY_KEY" >> ./DBs/$DB_NAME/$TABLE_NAME
+    echo "PRIMARY_KEY:$PRIMARY_KEY" >> ./DBs/$DB_NAME/$TABLE_NAME.meta
   else
-    echo "PRIMARY_KEY:" >> ./DBs/$DB_NAME/$TABLE_NAME
+    echo "PRIMARY_KEY:" >> ./DBs/$DB_NAME/$TABLE_NAME.meta
   fi
+
+  # Creating the table data file
+  touch ./DBs/$DB_NAME/$TABLE_NAME.data
 
   if [ $? -eq 0 ]; then
     return 0
@@ -165,7 +95,7 @@ create_table() {
   read -p "Enter the Table Name: " TABLE_NAME
 
   # Check the table name
-  until validate_table_name $TABLE_NAME; do
+  until validate_structure_name "Table" $TABLE_NAME; do
     echo ""
     read -p "Enter the Table Name: " TABLE_NAME
   done
@@ -224,14 +154,121 @@ drop_table() {
   # Replace white spaces with _
   TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
   
-  # Check if the database name exists
+  # Check if the table name exists
   check_table_exists $TABLE_NAME
   
   if [ $? -eq 0 ]; then
-    rm -r "./DBs/$DB_NAME/$TABLE_NAME"
+    rm "./DBs/$DB_NAME/$TABLE_NAME.meta"
+    rm "./DBs/$DB_NAME/$TABLE_NAME.data"
     echo "TABLE '$TABLE_NAME' Dropped !!!"
   else
     echo "TABLE '$TABLE_NAME' Does Not Exist !!!"
+  fi
+}
+
+insert_data() {
+  TB_NAME="$1" 
+  META_FILE="./DBs/$DB_NAME/$TB_NAME.meta"
+  
+  # Check if the meta file exists
+  if [ ! -f "$META_FILE" ]; then
+    echo "Error: Unable to find '$TB_NAME'.meta file !!!"
+    return 1
+  fi
+
+  # Extracts the metadata from the file
+  TABLE_COLUMNS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "$META_FILE"))
+  COLUMNS_TYPES=($(awk -F':' 'NR==2 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "$META_FILE"))
+  PRIMARY_KEY=$(awk -F':' 'NR==3 { sub(/^PRIMARY_KEY:/, ""); print }' "$META_FILE")
+
+  # Check if number of columns and types match
+  [[ ${#TABLE_COLUMNS[@]} -eq ${#COLUMNS_TYPES[@]} ]] || {
+    echo "Error: Number of columns and types do not match !!!"
+    return 1
+  }
+
+  # Start inserting data dialog
+  while true
+  do
+    clear
+    echo "=== Inserting into '$TB_NAME' table ==="
+    echo "------------------------------------------"
+    echo ""
+    
+    # Ask user for data
+    declare -A DATA
+    
+    for ((i=0; i<${#TABLE_COLUMNS[@]}; i++)); do
+      read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+      # Check the data type
+      if [ "${COLUMNS_TYPES[i]}" == "num" ]; then
+        until validate_number_input $VALUE; do
+          echo ""
+          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+        done
+      elif [ "${COLUMNS_TYPES[i]}" == "date" ]; then
+        until validate_date_input $VALUE; do
+          echo ""
+          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+        done
+      fi
+
+      # Check if the primary key is unique
+      if [ -n "$PRIMARY_KEY" ] && [ "${TABLE_COLUMNS[i]}" == "$PRIMARY_KEY" ]; then
+        until check_primary_key $TB_NAME $((i + 1)) $VALUE; do
+          echo ""
+          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+        done
+      fi
+
+      DATA[${TABLE_COLUMNS[i]}]=$VALUE
+      echo ""
+    done
+
+    # Add data to the table
+    echo $(IFS=":"; echo "${DATA[*]}") >> "./DBs/$DB_NAME/$TB_NAME.data"
+    
+    clear
+    if [ $? -eq 0 ]; then
+      echo "Data Inserted Successfully !!!"
+    else
+      echo "Error: Data Insertion Failed !!!"
+    fi
+
+    echo ""
+    read -p "Do you want to insert more data ? [y/n]: " CHOICE
+    if [ "$CHOICE" != "y" -a "$CHOICE" != "Y" ]; then
+      return 0
+    fi
+  done
+}
+
+insert_into_table() {
+  echo "=== Inserting into a table ==="
+  echo "------------------------------"
+  echo ""
+
+  read -p "Enter the Table Name: " TABLE_NAME
+
+  # Replace white spaces with _
+  TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
+  
+  # Check if the table name exists
+  until check_table_exists $TABLE_NAME; do
+    echo "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    echo ""
+    read -p "Enter the Table Name: " TABLE_NAME
+  done
+  
+  insert_data $TABLE_NAME
+
+  if [ $? -eq 0 ]; then
+    clear
+    return 0
+  else
+    echo "Error: Data Insertion Failed !!!"
+    read
+    return 1
   fi
 }
 
@@ -273,7 +310,10 @@ do
       ;;
     4)
       clear
-      read
+      insert_into_table
+      echo ""
+      echo "Finished inserting into the table ..."
+      read -t 3
       ;;
     5)
       clear

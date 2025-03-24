@@ -1,27 +1,23 @@
 #! /bin/bash
 
+# ---------------------------- Checking Databases Directory ---------------------------- #
+
+if [ ! -d "./DBs" ]
+then
+  mkdir ./DBs
+fi
+
+# ---------------------------- Sourcing utils.sh ---------------------------- #
+
+if [ -f ./utils.sh ]; then
+  source ./utils.sh
+else
+  echo "Error: utils.sh not found !!!"
+  exit 1
+fi
+
 # ---------------------------- Helper Functions ---------------------------- #
 
-get_databases() {
-  DATABASES=()
-  for ITEM in ./DBs/*; do
-    if [ -d "$ITEM" ]; then
-      DATABASES+=("$(basename "$ITEM")")
-    fi
-  done
-  echo "${DATABASES[@]}"
-}
-
-check_database_exists() {
-  DATABASE_NAME=$1
-  AVAILABLE_DATABASES=($(get_databases))
-  for DATABASE in ${AVAILABLE_DATABASES[@]}; do
-    if [ "$DATABASE" == "$DATABASE_NAME" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
 
 validate_database_name() {
   DATABASE_NAME=$1
