@@ -1,10 +1,19 @@
 #! /bin/bash
 
-# ---------------------------- Databases Directory ---------------------------- #
+# ---------------------------- Checking Databases Directory ---------------------------- #
 
 if [ ! -d "./DBs" ]
 then
   mkdir ./DBs
+fi
+
+# ---------------------------- Sourcing Utils.sh ---------------------------- #
+
+if [ -f ./Utils.sh ]; then
+  source ./Utils.sh
+else
+  echo "Error: Utils.sh not found !!!"
+  exit 1
 fi
 
 # ---------------------------- Database Functions ---------------------------- #
@@ -17,7 +26,7 @@ create_database() {
   read -p "Enter the Database Name: " DB_NAME
 
   # Check the database name
-  source Utils.sh validate_database_name $DB_NAME
+  validate_database_name $DB_NAME
   if [ $? -ne 0 ]; then
     return 1
   fi
@@ -50,7 +59,7 @@ list_all_databases() {
   echo "-------------------------"
   echo ""
 
-  AVAILABLE_DATABASES=($(source Utils.sh get_databases))
+  AVAILABLE_DATABASES=($(get_databases))
 
   if [ ${#AVAILABLE_DATABASES} -eq 0 ]; then
     echo "No Databases Available !!!"
@@ -76,7 +85,7 @@ drop_database() {
   DB_NAME=$(echo $DB_NAME | tr ' ' '_')
 
   # Check if the database name exists
-  source Utils.sh check_database_exists $DB_NAME
+  check_database_exists $DB_NAME
   
   if [ $? -eq 0 ]; then
     rm -r "./DBs/$DB_NAME"
@@ -97,7 +106,7 @@ connect_database() {
   DB_NAME=$(echo $DB_NAME | tr ' ' '_')
 
   # Check if the database name exists
-  source Utils.sh check_database_exists $DB_NAME
+  check_database_exists $DB_NAME
 
   if [ $? -eq 0 ]; then
     source Table_Menu.sh $DB_NAME
