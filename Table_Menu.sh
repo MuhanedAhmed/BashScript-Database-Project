@@ -32,7 +32,7 @@ create_table_structure() {
 
     # Check the column name
     read -p "Enter Column ($i) Name: " COLUMN_NAME
-    until validate_column_name $COLUMN_NAME; do
+    until validate_structure_name "Column" $COLUMN_NAME; do
       echo ""
       read -p "Enter Column ($i) Name: " COLUMN_NAME
     done
@@ -94,7 +94,7 @@ create_table() {
   read -p "Enter the Table Name: " TABLE_NAME
 
   # Check the table name
-  until validate_table_name $TABLE_NAME; do
+  until validate_structure_name "Table" $TABLE_NAME; do
     echo ""
     read -p "Enter the Table Name: " TABLE_NAME
   done

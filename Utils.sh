@@ -54,90 +54,31 @@ check_nonzero_positive_integer() {
 
 # ---------------------------- Validation Functions ---------------------------- #
 
-validate_database_name() {
-  DATABASE_NAME="$1"
+validate_structure_name() {
+  STRUCTURE_TYPE="$1"
+  STRUCTURE_NAME="$2"
 
-  # Check if the database name is empty
-  if [[ -z $DATABASE_NAME ]]; then
-    echo "Error: Database name cannot be empty !!!"
+  # Check if the structure name is empty
+  if [[ -z $STRUCTURE_NAME ]]; then
+    echo "Error: $STRUCTURE_TYPE name cannot be empty !!!"
     return 1
   fi
 
-  # Check if the database name is greater than 12 characters
-  if [[ ${#DATABASE_NAME} -gt 12 ]]; then
-    echo "Error: Database name cannot exceed 12 characters !!!"
+  # Check if the structure name is greater than 12 characters
+  if [[ ${#STRUCTURE_NAME} -gt 12 ]]; then
+    echo "Error: $STRUCTURE_TYPE name cannot exceed 12 characters !!!"
     return 1
   fi
 
-  # Check for invalid characters in the database name
-  if [[ ! $DATABASE_NAME =~ ^[a-zA-Z0-9_#@$]*$ ]]; then
-    echo "Error: Database name can only contain alphabets, numbers and [ '$' , '#' , '@' ] !!!"
+  # Check for invalid characters in the structure name
+  if [[ ! $STRUCTURE_NAME =~ ^[a-zA-Z0-9_#@$]*$ ]]; then
+    echo "Error: $STRUCTURE_TYPE name can only contain alphabets, numbers and [ '$' , '#' , '@' ] !!!"
     return 1
   fi
 
-  # Check the start of the database name (only alphabets)
-  if [[ ! $DATABASE_NAME =~ ^[a-zA-Z] ]]; then
-    echo "Error: Database name must start with an alphabet !!!"
-    return 1
-  fi
-
-  return 0
-}
-
-validate_table_name() {
-  TABLE_NAME="$1"
-
-  # Check if the table name is empty
-  if [[ -z $TABLE_NAME ]]; then
-    echo "Error: Table name cannot be empty !!!"
-    return 1
-  fi
-
-  # Check if the table name is greater than 12 characters
-  if [[ ${#TABLE_NAME} -gt 12 ]]; then
-    echo "Error: Table name cannot exceed 12 characters !!!"
-    return 1
-  fi
-
-  # Check for invalid characters in the table name
-  if [[ ! $TABLE_NAME =~ ^[a-zA-Z0-9_#@$]*$ ]]; then
-    echo "Error: Table name can only contain alphabets, numbers and [ '$' , '#' , '@' ] !!!"
-    return 1
-  fi
-
-  # Check the start of the table name (only alphabets)
-  if [[ ! $TABLE_NAME =~ ^[a-zA-Z] ]]; then
-    echo "Error: Table name must start with an alphabet !!!"
-    return 1
-  fi
-
-  return 0
-}
-
-validate_column_name() {
-  COLUMN_NAME="$1"
-
-  # Check if the column name is empty
-  if [[ -z $COLUMN_NAME ]]; then
-    echo "Error: Column name cannot be empty !!!"
-    return 1
-  fi
-
-  # Check if the column name is greater than 12 characters
-  if [[ ${#COLUMN_NAME} -gt 12 ]]; then
-    echo "Error: Column name cannot exceed 12 characters !!!"
-    return 1
-  fi
-
-  # Check for invalid characters in the column name
-  if [[ ! $COLUMN_NAME =~ ^[a-zA-Z0-9_#@$]*$ ]]; then
-    echo "Error: Column name can only contain alphabets, numbers and [ '$' , '#' , '@' ] !!!"
-    return 1
-  fi
-
-  # Check the start of the column name (only alphabets)
-  if [[ ! $COLUMN_NAME =~ ^[a-zA-Z] ]]; then
-    echo "Error: Column name must start with an alphabet !!!"
+  # Check the start of the structure name (only alphabets)
+  if [[ ! $STRUCTURE_NAME =~ ^[a-zA-Z] ]]; then
+    echo "Error: $STRUCTURE_TYPE name must start with an alphabet !!!"
     return 1
   fi
 

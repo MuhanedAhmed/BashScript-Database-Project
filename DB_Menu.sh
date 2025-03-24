@@ -26,7 +26,7 @@ create_database() {
   read -p "Enter the Database Name: " DB_NAME
 
   # Check the database name
-  validate_database_name $DB_NAME
+  validate_structure_name "Database" $DB_NAME
   if [ $? -ne 0 ]; then
     return 1
   fi
