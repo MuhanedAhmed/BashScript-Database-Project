@@ -13,7 +13,7 @@ create_table_structure() {
   echo ""
 
   # Array to store columns names and types
-  declare -A COLUMNS
+  declare -A TB_COLUMNS
 
   read -p "How many columns ? : " NUM_OF_COLUMNS
 
@@ -45,7 +45,7 @@ create_table_structure() {
     done
     echo ""
 
-    COLUMNS[$COLUMN_NAME]=$COLUMN_TYPE
+    TB_COLUMNS[$COLUMN_NAME]=$COLUMN_TYPE
   done
 
   # Check if the user needs a primary key
@@ -55,15 +55,15 @@ create_table_structure() {
     read -p "Enter Primary Key: " PRIMARY_KEY
     
     # Check the primary key
-    until [[ -n "${COLUMNS[$PRIMARY_KEY]}" ]]; do
+    until [[ -n "${TB_COLUMNS[$PRIMARY_KEY]}" ]]; do
       echo "Error: Column '$PRIMARY_KEY' does not exist. Please enter a valid column name."
       read -p "Enter Primary Key: " PRIMARY_KEY
     done
   fi
 
   # Formatting columns names and types
-  keys=$(IFS=":"; echo "${!COLUMNS[*]}")
-  values=$(IFS=":"; echo "${COLUMNS[*]}")
+  keys=$(IFS=":"; echo "${!TB_COLUMNS[*]}")
+  values=$(IFS=":"; echo "${TB_COLUMNS[*]}")
 
   # Creating the table metadata file
   echo "$keys" >> ./DBs/$DB_NAME/$TABLE_NAME.meta
@@ -165,6 +165,113 @@ drop_table() {
   fi
 }
 
+insert_data() {
+  TB_NAME="$1" 
+  META_FILE="./DBs/$DB_NAME/$TB_NAME.meta"
+  
+  # Check if the meta file exists
+  if [ ! -f "$META_FILE" ]; then
+    echo "Error: Unable to find '$TB_NAME'.meta file !!!"
+    return 1
+  fi
+
+  # Extracts the metadata from the file
+  TABLE_COLUMNS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "$META_FILE"))
+  COLUMNS_TYPES=($(awk -F':' 'NR==2 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "$META_FILE"))
+  PRIMARY_KEY=$(awk -F':' 'NR==3 { sub(/^PRIMARY_KEY:/, ""); print }' "$META_FILE")
+
+  # Check if number of columns and types match
+  [[ ${#TABLE_COLUMNS[@]} -eq ${#COLUMNS_TYPES[@]} ]] || {
+    echo "Error: Number of columns and types do not match !!!"
+    return 1
+  }
+
+  # Start inserting data dialog
+  while true
+  do
+    clear
+    echo "=== Inserting into '$TB_NAME' table ==="
+    echo "------------------------------------------"
+    echo ""
+    
+    # Ask user for data
+    declare -A DATA
+    
+    for ((i=0; i<${#TABLE_COLUMNS[@]}; i++)); do
+      read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+      # Check the data type
+      if [ "${COLUMNS_TYPES[i]}" == "num" ]; then
+        until validate_number_input $VALUE; do
+          echo ""
+          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+        done
+      elif [ "${COLUMNS_TYPES[i]}" == "date" ]; then
+        until validate_date_input $VALUE; do
+          echo ""
+          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+        done
+      fi
+
+      # Check if the primary key is unique
+      if [ -n "$PRIMARY_KEY" ] && [ "${TABLE_COLUMNS[i]}" == "$PRIMARY_KEY" ]; then
+        until check_primary_key $TB_NAME $((i + 1)) $VALUE; do
+          echo ""
+          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+        done
+      fi
+
+      DATA[${TABLE_COLUMNS[i]}]=$VALUE
+      echo ""
+    done
+
+    # Add data to the table
+    echo $(IFS=":"; echo "${DATA[*]}") >> "./DBs/$DB_NAME/$TB_NAME.data"
+    
+    clear
+    if [ $? -eq 0 ]; then
+      echo "Data Inserted Successfully !!!"
+    else
+      echo "Error: Data Insertion Failed !!!"
+    fi
+
+    echo ""
+    read -p "Do you want to insert more data ? [y/n]: " CHOICE
+    if [ "$CHOICE" != "y" -a "$CHOICE" != "Y" ]; then
+      return 0
+    fi
+  done
+}
+
+insert_into_table() {
+  echo "=== Inserting into a table ==="
+  echo "------------------------------"
+  echo ""
+
+  read -p "Enter the Table Name: " TABLE_NAME
+
+  # Replace white spaces with _
+  TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
+  
+  # Check if the table name exists
+  until check_table_exists $TABLE_NAME; do
+    echo "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    echo ""
+    read -p "Enter the Table Name: " TABLE_NAME
+  done
+  
+  insert_data $TABLE_NAME
+
+  if [ $? -eq 0 ]; then
+    clear
+    return 0
+  else
+    echo "Error: Data Insertion Failed !!!"
+    read
+    return 1
+  fi
+}
+
+# ---------------------------- Start of Table Menu ---------------------------- #
 
 select input in "Create Table" "List Tables" "Drop Table" "Insert into Table" "Select From Table" "Delete From Table" "Update Table" "Exit"
 do
@@ -179,7 +286,7 @@ do
         drop_table
     ;;
     4)
-        
+        insert_into_table
     ;;
     5)
         

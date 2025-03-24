@@ -52,6 +52,34 @@ check_nonzero_positive_integer() {
   fi
 }
 
+check_primary_key() {
+  local TABLE_NAME="$1"
+  local FIELD_NUMBER="$2"
+  local PRIMARY_KEY_VALUE="$3"
+
+  DATA_FILE="./DBs/$DB_NAME/$TABLE_NAME.data"
+
+  # Check if the data file exists
+  if [[ ! -f "$DATA_FILE" ]]; then
+    echo "Error: Enable to find '$TABLE_NAME'.data file !!!"
+    return 1
+  fi
+
+  # Check if the primary key value already exists
+  if awk -F':' -v field="$FIELD_NUMBER" -v pk_value="$PRIMARY_KEY_VALUE" '
+    {
+      if ($field == pk_value) {
+        exit 1  # Found duplicate
+      }
+    }
+  ' "$DATA_FILE"; then
+    return 0
+  else
+    echo "Error: Primary key value '$PRIMARY_KEY_VALUE' already exists !!!"
+    return 1
+  fi
+}
+
 # ---------------------------- Validation Functions ---------------------------- #
 
 validate_structure_name() {
