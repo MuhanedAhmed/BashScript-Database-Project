@@ -125,16 +125,13 @@ create_table_structure() {
   # Check if the user needs a primary key
   read -p "Do you need a Primary Key ? [y/n]: " NEED_PRIMARY_KEY
   if [ "$NEED_PRIMARY_KEY" == "y" -o "$NEED_PRIMARY_KEY" == "Y" ]; then
-    while true; do
-
-      # Check the primary key
+    
+    read -p "Enter Primary Key: " PRIMARY_KEY
+    
+    # Check the primary key
+    until [[ -n "${COLUMNS[$PRIMARY_KEY]}" ]]; do
+      echo "Error: Column '$PRIMARY_KEY' does not exist. Please enter a valid column name."
       read -p "Enter Primary Key: " PRIMARY_KEY
-      if [[ -n "${COLUMNS[$PRIMARY_KEY]}" ]]; then
-        COLUMNS[$PRIMARY_KEY]=${COLUMNS[$PRIMARY_KEY]}":PRIMARY_KEY"
-        break
-      else
-        echo "Error: Column '$PRIMARY_KEY' does not exist. Please enter a valid column name."
-      fi
     done
   fi
 
@@ -145,7 +142,12 @@ create_table_structure() {
   # Create the table file
   echo "$keys" >> ./DBs/$DB_NAME/$TABLE_NAME
   echo "$values" >> ./DBs/$DB_NAME/$TABLE_NAME
-  echo "PRIMARY_KEY:$PRIMARY_KEY" >> ./DBs/$DB_NAME/$TABLE_NAME
+
+  if [ -n "$PRIMARY_KEY" ]; then
+    echo "PRIMARY_KEY:$PRIMARY_KEY" >> ./DBs/$DB_NAME/$TABLE_NAME
+  else
+    echo "PRIMARY_KEY:" >> ./DBs/$DB_NAME/$TABLE_NAME
+  fi
 
   if [ $? -eq 0 ]; then
     return 0
@@ -240,7 +242,7 @@ while true
 do 
   clear
   echo "********** Connected to '$DB_NAME' **********"
-  echo "----------------------------------------------------"
+  echo "---------------------------------------------"
   echo ""
   echo "1) Create Table"
   echo "2) List All Tables"
