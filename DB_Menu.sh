@@ -1,5 +1,5 @@
 #! /bin/bash
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ---------------------------- Checking Databases Directory ---------------------------- #
 
 if [ ! -d "./DBs" ]
@@ -9,8 +9,8 @@ fi
 
 # ---------------------------- Sourcing Utils.sh ---------------------------- #
 
-if [ -f ./Utils.sh ]; then
-  source ./Utils.sh
+if [ -f $SCRIPT_DIR/Utils.sh ]; then
+  source $SCRIPT_DIR/Utils.sh
 else
   echo "Error: Utils.sh not found !!!"
   exit 1
@@ -109,7 +109,7 @@ connect_database() {
   check_database_exists $DB_NAME
 
   if [ $? -eq 0 ]; then
-    source Table_Menu.sh $DB_NAME
+    source $SCRIPT_DIR/Table_Menu.sh $DB_NAME
   else
     echo "Database '$DB_NAME' Does Not Exist !!!"
   fi
@@ -119,6 +119,7 @@ connect_database() {
 PS3=">> "
 select input in "Create Database" "List Databases" "Connect To Database" "Drop Database" "Exit"
 do
+  clear
   case $REPLY in
     1)
       clear
