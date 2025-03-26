@@ -162,35 +162,3 @@ validate_date_input() {
     return 1
   fi
 }
-validate_query(){
-  QUERY="$1"
-  if [[ -z $QUERY ]]; then
-    echo "Error: Query cannot be empty !!!"
-    return 1
-  fi
-  if [[ ! "$QUERY" =~ ^SELECT[[:space:]]+.+[[:space:]]+FROM[[:space:]]+[a-zA-Z0-9_]+ ]]; then
-        echo "Error: Invalid SELECT query syntax!"
-        return 1
-  fi
-  # Extract table name
-  TABLE_NAME=$(echo "$QUERY" | awk '{for (i=1; i<=NF; i++) if ($i == "FROM") print $(i+1)}')
-
-  if [[ -z "$TABLE_NAME" ]]; then
-      echo "Error: Table name is missing!"
-      return 1
-  fi
-
-  # Validate WHERE clause if present
-  if [[ "$QUERY" =~ WHERE ]]; then
-      CONDITION=$(echo "$QUERY" | awk -F'WHERE' '{print $2}')
-      CONDITION=$(echo "$CONDITION" | xargs)  # Trim spaces
-        
-      if [[ ! "$CONDITION" =~ ^[a-zA-Z0-9_]+[[:space:]]*=[[:space:]]*[a-zA-Z0-9_]+$ ]]; then
-          echo "Error: Invalid WHERE condition!"
-          return 1
-      fi
-  fi
-  return 0
-
-  
-}

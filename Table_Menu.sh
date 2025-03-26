@@ -270,76 +270,87 @@ insert_into_table() {
     return 1
   fi
 }
-process_query(){
-  QUERY="$1"
-  IFS=' ' read -r -a QUERY_ARRAY <<< "$QUERY"
-  # echo "Array contents:"
-  # for i in "${!QUERY_ARRAY[@]}"; do
-  #     echo "Index $i: ${QUERY_ARRAY[$i]}"
-  # done
-  TABLE_NAME="${QUERY_ARRAY[3]}"
-  # echo $TABLE_NAME
-  if [ ${#QUERY_ARRAY[@]} -gt 4 ]; then
-      if [ "${QUERY_ARRAY[1]}" == "*" ]; then
-          CONDTION=${QUERY_ARRAY[5]}
-          IFS='=' read -r COL_NAME COL_VALUE <<< "$CONDTION"
-          awk '
-          BEGIN { FS = ":" }
-          {
-            for (i=1; i<=NF; i++) {
-                if ($i == "'$COL_VALUE'") {
-                  print $0
-                }
-            }
-          }
-          ' ./DBs/$DB_NAME/$TABLE_NAME.data
-      else
-        CONDTION=${QUERY_ARRAY[5]}
-        IFS='=' read -r COL_NAME COL_VALUE <<< "$CONDTION"
-        TB_COLUMNS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
-        for ((i=0; i<${#TB_COLUMNS[@]}; i++)); do
-          if [ "${TB_COLUMNS[i]}" == "${QUERY_ARRAY[1]}" ]; then
-            COL_NUM=$((i+1))
-            break
-          fi
-        done
-        Column_Data=( $(cut -d ":" -f $COL_NUM ./DBs/$DB_NAME/$TABLE_NAME.data) )
-        FILTERED_DATA=()
-        for ((i=0; i<${#Column_Data[@]}; i++)); do
-          if [ "${Column_Data[i]}" == "$COL_VALUE" ]; then
-            FILTERED_DATA+=("${Column_Data[i]}")
-          fi
-        done
-        echo "${FILTERED_DATA[@]}"        
+select_from_table()
+{
+  read -p "Enter the Table Name: " TABLE_NAME
+  TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
+  check_table_exists $TABLE_NAME
+  if [ $? -eq 1 ]; then
+    echo "Table '$TABLE_NAME' Does Not Exist !!!"
+    return 1
+  fi
+  TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
+  declare -A COL_INDEX
+  for i in "${!TABLE_HEADERS[@]}"; do
+    COL_INDEX["${TABLE_HEADERS[$i]}"]=$((i+1))
+  done
+  declare -a Selected_Columns
+  echo "=== Selecting from '$TABLE_NAME' table ==="
+  echo "------------------------------------------"
+  echo ""
+  read -p "Enter the Columns Names to Select or write '*' for all: " -a Selected_Columns
+  if [ "${Selected_Columns[0]}" == "*" ]; then
+    Selected_Columns=("${TABLE_HEADERS[@]}")
+  fi
+  for i in "${!Selected_Columns[@]}"; do
+    if [[ -z "${COL_INDEX[${Selected_Columns[$i]}]}" ]]; then
+      echo "Error: Column '${Selected_Columns[$i]}' does not exist!"
+      continue
+    fi
+  done
+  echo "Selected Columns: ${Selected_Columns[@]}"
+  awk_print=""
+  for col in "${Selected_Columns[@]}"; do
+    col_index=${COL_INDEX[$col]}
+    if [[ -n "$col_index" ]]; then
+        [[ -n "$awk_print" ]] && awk_print+=", "
+        awk_print+='$'"$col_index"
+    fi
+  done
+
+  declare -A Filters
+  read -p "Do you want to Filter the Data ? [y/n]: " CHOICE
+  if [ "$CHOICE" == "y" -o "$CHOICE" == "Y" ]; then
+    while true;
+    do
+      read -p "Enter the Column Name to Filter: " COLUMN_NAME
+      if [[ -z "${COL_INDEX[$COLUMN_NAME]}" ]]; then
+        echo "Error: Column '$COLUMN_NAME' does not exist!"
+        continue
       fi
-  else
-    if [ "${QUERY_ARRAY[1]}" == "*" ]; then
-      cat ./DBs/$DB_NAME/$TABLE_NAME.data
+      read -p "Enter the Value to Filter: " VALUE
+      Filters[$COLUMN_NAME]=$VALUE
+      read -p "Do you want to Filter more data ? [y/n]: " CHOICE
+      if [ "$CHOICE" != "y" -a "$CHOICE" != "Y" ]; then
+        break
+      fi
+    done
+    awk_cond=""
+    for key in "${!Filters[@]}"; do
+        col_index=${COL_INDEX[$key]}
+        if [[ -n "$col_index" ]]; then
+          [[ -n "$awk_cond" ]] && awk_cond+=" && "
+            awk_cond+='$'"${col_index} == \"${Filters[$key]}\""
+        fi
+    done
+    if [[ -n "$awk_cond" && -n "$awk_print" ]]; then
+      awk -F':' 'BEGIN { OFS=":" } { if ('"$awk_cond"') print '"$awk_print"' }' "./DBs/$DB_NAME/$TABLE_NAME.data"
+    fi
+    if [ $? -eq 0 ]; then
+      echo "Data Selected Successfully !!!"
     else
-       TB_COLUMNS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
-       for ((i=0; i<${#TB_COLUMNS[@]}; i++)); do
-          if [ "${TB_COLUMNS[i]}" == "${QUERY_ARRAY[1]}" ]; then
-            COL_NUM=$((i+1))
-            break
-          fi
-       done
-       cut -d ":" -f $COL_NUM ./DBs/$DB_NAME/$TABLE_NAME.data
+      echo "No Data Found With The Given Conditions !!!"
+    fi
+  else
+    if [[ -n "$awk_print" ]]; then
+      awk -F':' 'BEGIN { OFS=":" } { print '"$awk_print"' }' "./DBs/$DB_NAME/$TABLE_NAME.data"
+    fi
+    if [ $? -eq 0 ]; then
+      echo "Data Selected Successfully !!!"
+    else
+      echo "No Data Found With The Given Conditions !!!"
     fi
   fi
-}
-
-select_from_table(){
-  read -r -p "Enter Query Please" QUERY
-  ## check if the query is valid call the function to validate
-  validate_query "$QUERY"
-  if [ $? -eq 1 ];then 
-    return 1
-  else 
-    process_query "$QUERY"
-  fi 
- 
-  
-  
 }
 update_table()
 {
