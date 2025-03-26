@@ -4,7 +4,7 @@
 
 get_databases() {
   DATABASES=()
-  for ITEM in ./DBs/*; do
+  for ITEM in $SCRIPT_DIR/DBs/*; do
     if [ -d "$ITEM" ]; then
       DATABASES+=("$(basename "$ITEM")")
     fi
@@ -25,7 +25,7 @@ check_database_exists() {
 
 get_tables() {
   TABLES=()
-  for ITEM in ./DBs/$DB_NAME/*.meta; do
+  for ITEM in $SCRIPT_DIR/DBs/$DB_NAME/*.meta; do
     if [ -f "$ITEM" ]; then
       TABLES+=("$(basename "$ITEM" .meta)")
     fi
@@ -57,7 +57,7 @@ check_primary_key() {
   local FIELD_NUMBER="$2"
   local PRIMARY_KEY_VALUE="$3"
 
-  DATA_FILE="./DBs/$DB_NAME/$TABLE_NAME.data"
+  DATA_FILE="$SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data"
 
   # Check if the data file exists
   if [[ ! -f "$DATA_FILE" ]]; then

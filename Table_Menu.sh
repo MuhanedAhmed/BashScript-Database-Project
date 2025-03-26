@@ -1,6 +1,5 @@
 DB_NAME="$1"
 PS3="$DB_NAME>> "
-
 # ---------------------------- Table Functions ---------------------------- #
 
 create_table_structure() {
@@ -66,17 +65,17 @@ create_table_structure() {
   values=$(IFS=":"; echo "${TB_COLUMNS[*]}")
 
   # Creating the table metadata file
-  echo "$keys" >> ./DBs/$DB_NAME/$TABLE_NAME.meta
-  echo "$values" >> ./DBs/$DB_NAME/$TABLE_NAME.meta
+  echo "$keys" >> $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.meta
+  echo "$values" >> $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.meta
 
   if [ -n "$PRIMARY_KEY" ]; then
-    echo "PRIMARY_KEY:$PRIMARY_KEY" >> ./DBs/$DB_NAME/$TABLE_NAME.meta
+    echo "PRIMARY_KEY:$PRIMARY_KEY" >> $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.meta
   else
-    echo "PRIMARY_KEY:" >> ./DBs/$DB_NAME/$TABLE_NAME.meta
+    echo "PRIMARY_KEY:" >> $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.meta
   fi
 
   # Creating the table data file
-  touch ./DBs/$DB_NAME/$TABLE_NAME.data
+  touch $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data
 
   if [ $? -eq 0 ]; then
     return 0
@@ -157,8 +156,8 @@ drop_table() {
   check_table_exists $TABLE_NAME
   
   if [ $? -eq 0 ]; then
-    rm "./DBs/$DB_NAME/$TABLE_NAME.meta"
-    rm "./DBs/$DB_NAME/$TABLE_NAME.data"
+    rm "$SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.meta"
+    rm "$SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data"
     echo "TABLE '$TABLE_NAME' Dropped !!!"
   else
     echo "TABLE '$TABLE_NAME' Does Not Exist !!!"
@@ -167,7 +166,7 @@ drop_table() {
 
 insert_data() {
   TB_NAME="$1" 
-  META_FILE="./DBs/$DB_NAME/$TB_NAME.meta"
+  META_FILE="$SCRIPT_DIR/DBs/$DB_NAME/$TB_NAME.meta"
   
   # Check if the meta file exists
   if [ ! -f "$META_FILE" ]; then
@@ -225,7 +224,7 @@ insert_data() {
     done
 
     # Add data to the table
-    echo $(IFS=":"; echo "${DATA[*]}") >> "./DBs/$DB_NAME/$TB_NAME.data"
+    echo $(IFS=":"; echo "${DATA[*]}") >> "$SCRIPT_DIR/DBs/$DB_NAME/$TB_NAME.data"
     
     clear
     if [ $? -eq 0 ]; then
@@ -279,7 +278,7 @@ select_from_table()
     echo "Table '$TABLE_NAME' Does Not Exist !!!"
     return 1
   fi
-  TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
+  TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "$SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.meta"))
   declare -A COL_INDEX
   for i in "${!TABLE_HEADERS[@]}"; do
     COL_INDEX["${TABLE_HEADERS[$i]}"]=$((i+1))
@@ -334,7 +333,7 @@ select_from_table()
         fi
     done
     if [[ -n "$awk_cond" && -n "$awk_print" ]]; then
-      awk -F':' 'BEGIN { OFS=":" } { if ('"$awk_cond"') print '"$awk_print"' }' "./DBs/$DB_NAME/$TABLE_NAME.data"
+      awk -F':' 'BEGIN { OFS=":" } { if ('"$awk_cond"') print '"$awk_print"' }' "$SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data"
     fi
     if [ $? -eq 0 ]; then
       echo "Data Selected Successfully !!!"
@@ -343,7 +342,7 @@ select_from_table()
     fi
   else
     if [[ -n "$awk_print" ]]; then
-      awk -F':' 'BEGIN { OFS=":" } { print '"$awk_print"' }' "./DBs/$DB_NAME/$TABLE_NAME.data"
+      awk -F':' 'BEGIN { OFS=":" } { print '"$awk_print"' }' "$SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data"
     fi
     if [ $? -eq 0 ]; then
       echo "Data Selected Successfully !!!"
@@ -361,7 +360,7 @@ update_table()
     echo "Table '$TABLE_NAME' Does Not Exist !!!"
     return 1
   fi
-  TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
+  TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "$SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.meta"))
   declare -A COL_INDEX
   for i in "${!TABLE_HEADERS[@]}"; do
     COL_INDEX["${TABLE_HEADERS[$i]}"]=$((i+1))
@@ -391,7 +390,7 @@ update_table()
         }
         print $0
       }
-    ' ./DBs/$DB_NAME/$TABLE_NAME.data > ./DBs/$DB_NAME/$TABLE_NAME.data.tmp && mv ./DBs/$DB_NAME/$TABLE_NAME.data.tmp ./DBs/$DB_NAME/$TABLE_NAME.data
+    ' $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data > $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data.tmp && mv $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data.tmp $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data
     if [ $? -eq 0 ]; then
       echo "Data Updated Successfully !!!"
     else

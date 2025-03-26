@@ -1,10 +1,10 @@
 #! /bin/bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ---------------------------- Checking Databases Directory ---------------------------- #
 
 if [ ! -d "./DBs" ]
 then
-  mkdir ./DBs
+  mkdir $SCRIPT_DIR/DBs
 fi
 
 # ---------------------------- Sourcing Utils.sh ---------------------------- #
@@ -42,7 +42,7 @@ create_database() {
   fi
 
   # Create database directory
-  mkdir "./DBs/$DB_NAME"
+  mkdir "$SCRIPT_DIR/DBs/$DB_NAME"
 
   if [ $? -eq 0 ]; then
     echo "Database '$DB_NAME' Created Successfully !!!"
@@ -88,7 +88,7 @@ drop_database() {
   check_database_exists $DB_NAME
   
   if [ $? -eq 0 ]; then
-    rm -r "./DBs/$DB_NAME"
+    rm -r "$SCRIPT_DIR/DBs/$DB_NAME"
     echo "Database '$DB_NAME' Dropped !!!"
   else
     echo "Database '$DB_NAME' Does Not Exist !!!"
