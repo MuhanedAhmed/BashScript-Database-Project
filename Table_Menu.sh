@@ -341,7 +341,58 @@ select_from_table(){
   
   
 }
-
+update_table()
+{
+  read -p "Enter the Table Name: " TABLE_NAME_
+  TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
+  check_table_exists $TABLE_NAME
+  if [ $? -eq 1 ]; then
+    echo "Table '$TABLE_NAME' Does Not Exist !!!"
+    return 1
+  fi
+  TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
+  declare -A COL_INDEX
+  for i in "${!TABLE_HEADERS[@]}"; do
+    COL_INDEX["${TABLE_HEADERS[$i]}"]=$((i+1))
+  done  
+  while true;
+  do
+    echo "=== Updating '$TABLE_NAME' table ==="
+    echo "------------------------------------------"
+    echo ""
+    read -p "Enter the Column Name to Update: " COLUMN_NAME
+    if [[ -z "${COL_INDEX[$COLUMN_NAME]}" ]]; then
+      echo "Error: Column '$COLUMN_NAME' does not exist!"
+      continue
+    fi
+    COL_INDEX_TO_UPDATE="${COL_INDEX[$COLUMN_NAME]}"
+    read -p "Enter the Row Index to Update: " INDEX
+    if ! [[ "$INDEX" =~ ^[0-9]+$ ]]; then
+      echo "Error: Invalid row index!"
+      continue
+    fi
+    read -p "Enter the New Value: " NEW_VALUE
+    awk '
+      BEGIN { FS = ":"; OFS = ":" }
+      {
+        if (NR == '$INDEX') {
+          $'$COL_INDEX_TO_UPDATE' = "'$NEW_VALUE'"
+        }
+        print $0
+      }
+    ' ./DBs/$DB_NAME/$TABLE_NAME.data > ./DBs/$DB_NAME/$TABLE_NAME.data.tmp && mv ./DBs/$DB_NAME/$TABLE_NAME.data.tmp ./DBs/$DB_NAME/$TABLE_NAME.data
+    if [ $? -eq 0 ]; then
+      echo "Data Updated Successfully !!!"
+    else
+      echo "Error: Data Update Failed !!!"
+    fi
+    echo ""
+    read -p "Do you want to Update more data ? [y/n]: " CHOICE
+    if [ "$CHOICE" != "y" -a "$CHOICE" != "Y" ]; then
+      return 0
+    fi
+  done
+}
 # ---------------------------- Start of Table Menu ---------------------------- #
 
 select input in "Create Table" "List Tables" "Drop Table" "Insert into Table" "Select From Table" "Delete From Table" "Update Table" "Exit"
@@ -366,6 +417,7 @@ do
         
     ;;
     7)
+        update_table
         
     ;;
     8)
