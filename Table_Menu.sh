@@ -270,6 +270,77 @@ insert_into_table() {
     return 1
   fi
 }
+process_query(){
+  QUERY="$1"
+  IFS=' ' read -r -a QUERY_ARRAY <<< "$QUERY"
+  # echo "Array contents:"
+  # for i in "${!QUERY_ARRAY[@]}"; do
+  #     echo "Index $i: ${QUERY_ARRAY[$i]}"
+  # done
+  TABLE_NAME="${QUERY_ARRAY[3]}"
+  # echo $TABLE_NAME
+  if [ ${#QUERY_ARRAY[@]} -gt 4 ]; then
+      if [ "${QUERY_ARRAY[1]}" == "*" ]; then
+          CONDTION=${QUERY_ARRAY[5]}
+          IFS='=' read -r COL_NAME COL_VALUE <<< "$CONDTION"
+          awk '
+          BEGIN { FS = ":" }
+          {
+            for (i=1; i<=NF; i++) {
+                if ($i == "'$COL_VALUE'") {
+                  print $0
+                }
+            }
+          }
+          ' ./DBs/$DB_NAME/$TABLE_NAME.data
+      else
+        CONDTION=${QUERY_ARRAY[5]}
+        IFS='=' read -r COL_NAME COL_VALUE <<< "$CONDTION"
+        TB_COLUMNS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
+        for ((i=0; i<${#TB_COLUMNS[@]}; i++)); do
+          if [ "${TB_COLUMNS[i]}" == "${QUERY_ARRAY[1]}" ]; then
+            COL_NUM=$((i+1))
+            break
+          fi
+        done
+        Column_Data=( $(cut -d ":" -f $COL_NUM ./DBs/$DB_NAME/$TABLE_NAME.data) )
+        FILTERED_DATA=()
+        for ((i=0; i<${#Column_Data[@]}; i++)); do
+          if [ "${Column_Data[i]}" == "$COL_VALUE" ]; then
+            FILTERED_DATA+=("${Column_Data[i]}")
+          fi
+        done
+        echo "${FILTERED_DATA[@]}"        
+      fi
+  else
+    if [ "${QUERY_ARRAY[1]}" == "*" ]; then
+      cat ./DBs/$DB_NAME/$TABLE_NAME.data
+    else
+       TB_COLUMNS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
+       for ((i=0; i<${#TB_COLUMNS[@]}; i++)); do
+          if [ "${TB_COLUMNS[i]}" == "${QUERY_ARRAY[1]}" ]; then
+            COL_NUM=$((i+1))
+            break
+          fi
+       done
+       cut -d ":" -f $COL_NUM ./DBs/$DB_NAME/$TABLE_NAME.data
+    fi
+  fi
+}
+
+select_from_table(){
+  read -r -p "Enter Query Please" QUERY
+  ## check if the query is valid call the function to validate
+  validate_query "$QUERY"
+  if [ $? -eq 1 ];then 
+    return 1
+  else 
+    process_query "$QUERY"
+  fi 
+ 
+  
+  
+}
 
 # ---------------------------- Start of Table Menu ---------------------------- #
 
@@ -289,7 +360,7 @@ do
         insert_into_table
     ;;
     5)
-        
+        select_from_table  
     ;;
     6)
         
