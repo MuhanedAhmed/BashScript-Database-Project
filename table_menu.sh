@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DB_NAME=$1
+DB_NAME="$1"
 
 # ---------------------------- Table Functions ---------------------------- #
 
@@ -272,6 +272,113 @@ insert_into_table() {
   fi
 }
 
+delete_rows() {
+  TB_NAME="$1"
+  ALL_ROWS="$2"
+
+  if [ -n "$ALL_ROWS" ]; then
+    read -p "Are you sure you want to delete ALL rows ??? [y/n] : " CHOICE
+    if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
+      echo "OK, Good choice :) ..."
+      read -t 3
+      return 0
+    fi
+    
+    read -p "THIS IS THE LAST CHANCE !!! Are you sure you want to delete ALL ROWS ??? [y/n] : " CHOICE
+    if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
+      echo "OK, I thought so :) ..."
+      read -t 3
+      return 0
+    else
+      echo "" > "./DBs/$DB_NAME/$TB_NAME.data"
+      echo "All rows were deleted successfully !!!"
+      return 0
+    fi
+  fi
+
+  META_FILE="./DBs/$DB_NAME/$TB_NAME.meta"
+  DATA_FILE="./DBs/$DB_NAME/$TB_NAME.data"
+
+  # Prompt the user for specific deletion criteria
+  clear
+  echo "=== Deleting Specific Rows From '$TB_NAME' Table==="
+  echo "---------------------------------------------------"
+  echo ""
+
+  # Extract column names from the metadata file
+  TABLE_COLUMNS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "$META_FILE"))
+
+  echo "Available Columns:"
+  for ((i=0; i<${#TABLE_COLUMNS[@]}; i++)); do
+    echo "$((i + 1))) ${TABLE_COLUMNS[i]}"
+  done
+
+  echo ""
+
+  # Validate the column name
+  read -p "Enter the column name to filter rows for deletion: " COLUMN_NAME
+  until [[ "${TABLE_COLUMNS[@]}" =~ "$COLUMN_NAME" ]]; do
+    echo "Error: Invalid column name !!!"
+    read -p "Enter the column name to filter rows for deletion: " COLUMN_NAME
+  done
+
+  # Delete rows matching the criteria
+  read -p "Enter the value to match for deletion: " VALUE
+
+  read -p "Should the match be exact? [y/n]: " EXACT_MATCH
+  if [[ "$EXACT_MATCH" =~ ^[yY] ]]; then
+      # Exact match (using sed with word boundaries)
+      sed -i "/\b$VALUE\b/d" "$DATA_FILE"
+  else
+      # Partial match (default behavior)
+      sed -i "/$VALUE/d" "$DATA_FILE"
+  fi
+
+  sed "/$VALUE/d" "$DATA_FILE" > "${DATA_FILE}.tmp"
+  mv "${DATA_FILE}.tmp" "$DATA_FILE"
+
+  echo "Rows matching '$COLUMN_NAME = $VALUE' have been deleted successfully."
+}
+
+delete_from_table() {
+  echo "=== Delete from a table ==="
+  echo "---------------------------"
+  echo ""
+
+  read -p "Enter the Table Name: " TABLE_NAME
+
+  # Replace white spaces with _
+  TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
+  
+  # Check if the table name exists
+  until check_table_exists $TABLE_NAME; do
+    echo "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    echo ""
+    read -p "Enter the Table Name: " TABLE_NAME
+  done
+
+  clear
+  echo "=== Deleting from '$TABLE_NAME' table ==="
+  echo "-----------------------------------------"
+  echo ""
+  echo "1) Delete One Row"
+  echo "2) Delete All Rows"
+  echo ""
+
+  read -p "$TABLE_NAME>> " CHOICE
+  case $CHOICE in 
+    1)
+      delete_rows $TABLE_NAME
+      ;;
+    2)
+      delete_rows $TABLE_NAME "all"
+      ;;
+    *)
+      echo "Invalid Choice !!!"
+      ;;
+  esac
+}
+
 # ---------------------------- Start of Table Menu ---------------------------- #
 
 # Table Menu
@@ -321,6 +428,7 @@ do
       ;;
     6)
       clear
+      delete_from_table
       read
       ;;
     7)
