@@ -126,6 +126,24 @@ validate_column_type() {
   return 0
 }
 
+validate_string_input() {
+  STRING="$1"
+
+  # Check if the string is empty
+  if [[ -z $STRING ]]; then
+    echo "Error: String cannot be empty !!!"
+    return 1
+  fi
+
+  # Check if the string contains ':' character
+  if [[ "$STRING" =~ : ]]; then
+    echo "Error: String cannot contain ':' character !!!"
+    return 1
+  fi
+
+  return 0
+}
+
 validate_number_input() {
   NUMBER="$1"
 
