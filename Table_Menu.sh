@@ -290,8 +290,7 @@ insert_into_table() {
     return 1
   fi
 }
-select_from_table()
-{
+select_from_table() {
   read -p "Enter the Table Name: " TABLE_NAME
   TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
   check_table_exists $TABLE_NAME
@@ -372,8 +371,150 @@ select_from_table()
     fi
   fi
 }
-update_table()
-{
+
+delete_rows() {
+  TB_NAME="$1"
+  ALL_ROWS="$2"
+
+  # Check if the user wants to delete all rows
+  if [ -n "$ALL_ROWS" ]; then
+    echo ""
+    read -p "Are you sure you want to delete ALL rows ??? [y/n] : " CHOICE
+    if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
+      echo "OK, Good choice :) ..."
+      read -t 3
+      return 0
+    fi
+    
+    echo ""
+    read -p "THIS IS THE LAST CHANCE !!! Are you sure you want to delete ALL ROWS ??? [y/n] : " CHOICE
+    if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
+      echo "OK, I thought so :) ..."
+      read -t 3
+      return 0
+    else
+      echo "" > "./DBs/$DB_NAME/$TB_NAME.data"
+      clear
+      echo "All rows were deleted successfully !!!"
+      return 0
+    fi
+  fi
+
+  META_FILE="./DBs/$DB_NAME/$TB_NAME.meta"
+  DATA_FILE="./DBs/$DB_NAME/$TB_NAME.data"
+
+  # Prompt the user for a specific deletion criteria
+  clear
+  echo "=== Deleting Specific Rows From '$TB_NAME' Table ==="
+  echo "----------------------------------------------------"
+  echo ""
+
+  # Extract column names from the metadata file
+  TABLE_COLUMNS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "$META_FILE"))
+
+  echo "Available Columns:"
+  echo "=================="
+  for ((i=0; i<${#TABLE_COLUMNS[@]}; i++)); do
+    echo "$((i + 1))) ${TABLE_COLUMNS[i]}"
+  done
+
+  echo ""
+
+  # Validate the column name
+  read -p "Enter the column name to filter rows for deletion: " COLUMN_NAME
+  FOUND_COLUMN=false
+  until $FOUND_COLUMN; do
+    for COL_NAME in "${TABLE_COLUMNS[@]}"; do
+      if [ "$COL_NAME" == "$COLUMN_NAME" ]; then
+        FOUND_COLUMN=true
+        break
+      fi
+    done
+    if ! $FOUND_COLUMN; then
+      echo "Error: Invalid column name !!!"
+      echo ""
+      read -p "Enter the column name to filter rows for deletion: " COLUMN_NAME
+    fi
+  done
+
+  # Find the column index
+  for ((i=0; i<${#TABLE_COLUMNS[@]}; i++)); do
+    if [ "${TABLE_COLUMNS[i]}" == "$COLUMN_NAME" ]; then
+      # Index in awk starts with 1
+      COL_INDEX=$((i + 1))
+      break
+    fi
+  done
+
+  # Delete rows matching the criteria
+  echo ""
+  read -p "Enter the value to match for deletion: " VALUE
+
+  echo ""
+  read -p "Should the match be exact? [y/n]: " EXACT_MATCH
+  
+  ORIGINAL_LINES_COUNT=$(wc -l < "$DATA_FILE")
+  
+  if [[ "$EXACT_MATCH" =~ ^[yY] ]]; then
+    # Exact match: only delete if the entire field matches VALUE
+    awk -F':' -v col="$COL_INDEX" -v val="$VALUE" '$col == val {next} {print}' "$DATA_FILE" > "${DATA_FILE}.tmp"
+  else
+    # Partial match: delete if VALUE is anywhere in the column
+    awk -F':' -v col="$COL_INDEX" -v val="$VALUE" 'index($col, val) == 0 {print}' "$DATA_FILE" > "${DATA_FILE}.tmp"
+  fi
+
+  # Overwrite the original file with the filtered result
+  mv "${DATA_FILE}.tmp" "$DATA_FILE"
+
+  NEW_LINES_COUNT=$(wc -l < "$DATA_FILE")
+
+  # clear
+  echo "$((ORIGINAL_LINES_COUNT - NEW_LINES_COUNT)) rows were deleted successfully !!!"
+}
+
+delete_from_table() {
+  echo "=== Delete from a table ==="
+  echo "---------------------------"
+  echo ""
+
+  read -p "Enter the Table Name: " TABLE_NAME
+
+  # Replace white spaces with _
+  TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
+  
+  # Check if the table name exists
+  until check_table_exists $TABLE_NAME; do
+    echo "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    echo ""
+    read -p "Enter the Table Name: " TABLE_NAME
+  done
+
+  while true; do
+    clear
+    echo "=== Deleting from '$TABLE_NAME' table ==="
+    echo "-----------------------------------------"
+    echo ""
+    echo "1) Delete Specific Rows"
+    echo "2) Delete All Rows"
+    echo ""
+
+    read -p "$TABLE_NAME>> " CHOICE
+    case $CHOICE in 
+      1)
+        delete_rows $TABLE_NAME
+        return 0
+        ;;
+      2)
+        delete_rows $TABLE_NAME "all"
+        return 0
+        ;;
+      *)
+        ;;
+    esac
+  done
+}
+
+update_table() {
   read -p "Enter the Table Name: " TABLE_NAME_
   TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
   check_table_exists $TABLE_NAME
@@ -475,6 +616,7 @@ start_table_menu() {
         ;;
       6)
         clear
+        delete_from_table
         read
         ;;
       7)
