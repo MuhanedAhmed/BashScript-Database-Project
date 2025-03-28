@@ -1,3 +1,6 @@
+DB_NAME="$1"
+PS3="$DB_NAME>> "
+
 # ---------------------------- Table Functions ---------------------------- #
 
 create_table_structure() {
@@ -10,8 +13,7 @@ create_table_structure() {
   echo ""
 
   # Array to store columns names and types
-  local -A TB_COLUMNS
-  local -a COLUMNS_ORDER
+  declare -A TB_COLUMNS
 
   read -p "How many columns ? : " NUM_OF_COLUMNS
 
@@ -25,32 +27,24 @@ create_table_structure() {
   echo ""
     
   # Create each column
-  for (( i=0; i<$NUM_OF_COLUMNS; i++ ))
+  for (( i=1; i<=$NUM_OF_COLUMNS; i++ ))
   do
-    
+
     # Check the column name
-    read -p "Enter Column ($((i + 1))) Name: " COLUMN_NAME
+    read -p "Enter Column ($i) Name: " COLUMN_NAME
     until validate_structure_name "Column" $COLUMN_NAME; do
       echo ""
-      read -p "Enter Column ($((i + 1))/$((NUM_OF_COLUMNS + 1))) Name: " COLUMN_NAME
-    done
-
-    # Check if the column name already exists
-    until [[ -z "${TB_COLUMNS[$COLUMN_NAME]}" ]]; do
-        echo "Error: Column '$COLUMN_NAME' Already Exists !!!"
-        echo ""
-        read -p "Enter Column ($((i + 1))/$((NUM_OF_COLUMNS + 1))) Name: " COLUMN_NAME
+      read -p "Enter Column ($i) Name: " COLUMN_NAME
     done
     
     # Check the column type
-    read -p "Enter Column ($COLUMN_NAME) Type [num , str , date]: " COLUMN_TYPE
+    read -p "Enter Column ($i) Type [num , str , date]: " COLUMN_TYPE
     until validate_column_type $COLUMN_TYPE; do
       echo ""
-      read -p "Enter Column ($COLUMN_NAME) Type [num , str , date]: " COLUMN_TYPE
+      read -p "Enter Column ($i) Type [num , str , date]: " COLUMN_TYPE
     done
     echo ""
 
-    COLUMNS_ORDER+=($COLUMN_NAME)
     TB_COLUMNS[$COLUMN_NAME]=$COLUMN_TYPE
   done
 
@@ -63,21 +57,13 @@ create_table_structure() {
     # Check the primary key
     until [[ -n "${TB_COLUMNS[$PRIMARY_KEY]}" ]]; do
       echo "Error: Column '$PRIMARY_KEY' does not exist. Please enter a valid column name."
-      echo ""
       read -p "Enter Primary Key: " PRIMARY_KEY
     done
   fi
 
   # Formatting columns names and types
-  local keys=$(IFS=":"; echo "${COLUMNS_ORDER[*]}")
-  local values=""
-  for key in "${COLUMNS_ORDER[@]}"; do
-    if [[ -z "$values" ]]; then
-        values="${TB_COLUMNS[$key]}"
-    else
-        values+=":${TB_COLUMNS[$key]}"
-    fi
-  done
+  keys=$(IFS=":"; echo "${!TB_COLUMNS[*]}")
+  values=$(IFS=":"; echo "${TB_COLUMNS[*]}")
 
   # Creating the table metadata file
   echo "$keys" >> $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.meta
@@ -116,12 +102,12 @@ create_table() {
   # Replace white spaces with _
   TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
 
-  # Check if the table name already exists
-  until ! check_table_exists $TABLE_NAME; do
+  # Check if the table name already exists 
+  check_table_exists $TABLE_NAME
+  if [ $? -eq 0 ]; then
     echo "Table '$TABLE_NAME' Already Exists !!!"
-    echo ""
-    read -p "Enter the Table Name: " TABLE_NAME
-  done
+    return 1
+  fi
 
   # Create table structure
   create_table_structure $TABLE_NAME
@@ -209,23 +195,18 @@ insert_data() {
     echo ""
     
     # Ask user for data
-    local -a DATA=()
+    declare -A DATA
     
     for ((i=0; i<${#TABLE_COLUMNS[@]}; i++)); do
       read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
       # Check the data type
-      if [ "${COLUMNS_TYPES[i]}" == "str" ]; then
-        until validate_string_input "$VALUE"; do
-          echo ""
-          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
-        done
-      elif [ "${COLUMNS_TYPES[i]}" == "num" ]; then
-        until validate_number_input "$VALUE"; do
+      if [ "${COLUMNS_TYPES[i]}" == "num" ]; then
+        until validate_number_input $VALUE; do
           echo ""
           read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
         done
       elif [ "${COLUMNS_TYPES[i]}" == "date" ]; then
-        until validate_date_input "$VALUE"; do
+        until validate_date_input $VALUE; do
           echo ""
           read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
         done
@@ -239,7 +220,7 @@ insert_data() {
         done
       fi
 
-      DATA+=("$VALUE")
+      DATA[${TABLE_COLUMNS[i]}]=$VALUE
       echo ""
     done
 
@@ -266,7 +247,6 @@ insert_into_table() {
   echo "------------------------------"
   echo ""
 
-  local TABLE_NAME=""
   read -p "Enter the Table Name: " TABLE_NAME
 
   # Replace white spaces with _
@@ -424,72 +404,36 @@ update_table()
     fi
   done
 }
+# ---------------------------- Start of Table Menu ---------------------------- #
 
-# ---------------------------- Table Menu Function ---------------------------- #
-
-start_table_menu() {
-  
-  while true
-  do 
-    clear
-    echo "********** Connected to '$DB_NAME' **********"
-    echo "---------------------------------------------"
-    echo ""
-    echo "1) Create Table"
-    echo "2) List All Tables"
-    echo "3) Drop Table"
-    echo "4) Insert Into Table"
-    echo "5) Select From Table"
-    echo "6) Delete From Table"
-    echo "7) Update Table"
-    echo ""
-    echo "8) Disconnect"
-    echo ""
-    read -p "$DB_NAME>> " CHOICE
-    case $CHOICE in 
-      1)
-        clear
-        create_table
-        read -t 3
-        ;;
-      2)
-        clear
-        list_all_tables
-        read
-        ;;
-      3)
-        clear
+select input in "Create Table" "List Tables" "Drop Table" "Insert into Table" "Select From Table" "Delete From Table" "Update Table" "Exit"
+do
+    case $REPLY in
+    1)
+        create_table  
+    ;;
+    2)
+        list_all_tables 
+    ;;
+    3)
         drop_table
-        read -t 3
-        ;;
-      4)
-        clear
+    ;;
+    4)
         insert_into_table
-        echo "Data Insertion Finished !!!"
-        read -t 3
-        ;;
-      5)
-        clear
-        select_from_table
-        read
-        ;;
-      6)
-        clear
-        read
-        ;;
-      7)
-        clear
+    ;;
+    5)
+        select_from_table  
+    ;;
+    6)
+        
+    ;;
+    7)
         update_table
-        read
-        ;;
-      8)
-        clear
-        echo "Disconnecting from '$DB_NAME' ..."
-        return 0
-        ;;
-      *)
-        clear
-        ;;
+        
+    ;;
+    8)
+        echo "Thanks For Using Our DBMS"
+        exit
+    ;;
     esac
-  done
-}
+done
