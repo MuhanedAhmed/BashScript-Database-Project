@@ -4,7 +4,7 @@
 
 get_databases() {
   DATABASES=()
-  for ITEM in $SCRIPT_DIR/DBs/*; do
+  for ITEM in ./DBs/*; do
     if [ -d "$ITEM" ]; then
       DATABASES+=("$(basename "$ITEM")")
     fi
@@ -25,7 +25,7 @@ check_database_exists() {
 
 get_tables() {
   TABLES=()
-  for ITEM in $SCRIPT_DIR/DBs/$DB_NAME/*.meta; do
+  for ITEM in ./DBs/$DB_NAME/*.meta; do
     if [ -f "$ITEM" ]; then
       TABLES+=("$(basename "$ITEM" .meta)")
     fi
@@ -38,6 +38,19 @@ check_table_exists() {
   AVAILABLE_TABLES=($(get_tables))
   for TABLE in ${AVAILABLE_TABLES[@]}; do
     if [ "$TABLE" == "$TABLE_NAME" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+check_column_exists() {
+  local COLUMNS_NAMES=("$@")
+  local SEARCH_COLUMN="${COLUMNS_NAMES[-1]}"
+  unset 'COLUMNS_NAMES[-1]'
+  
+  for COLUMN in ${COLUMNS_NAMES[@]}; do
+    if [ "$COLUMN" == "$SEARCH_COLUMN" ]; then
       return 0
     fi
   done
@@ -57,7 +70,7 @@ check_primary_key() {
   local FIELD_NUMBER="$2"
   local PRIMARY_KEY_VALUE="$3"
 
-  DATA_FILE="$SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data"
+  DATA_FILE="./DBs/$DB_NAME/$TABLE_NAME.data"
 
   # Check if the data file exists
   if [[ ! -f "$DATA_FILE" ]]; then
@@ -79,6 +92,7 @@ check_primary_key() {
     return 1
   fi
 }
+
 # ---------------------------- Validation Functions ---------------------------- #
 
 validate_structure_name() {
@@ -120,6 +134,24 @@ validate_column_type() {
 
   if [ "$1" != "num" -a "$1" != "str" -a "$1" != "date" ]; then
     echo "Error: Invalid Column Type !!!"
+    return 1
+  fi
+
+  return 0
+}
+
+validate_string_input() {
+  STRING="$1"
+
+  # Check if the string is empty
+  if [[ -z $STRING ]]; then
+    echo "Error: String cannot be empty !!!"
+    return 1
+  fi
+
+  # Check if the string contains ':' character
+  if [[ "$STRING" =~ : ]]; then
+    echo "Error: String cannot contain ':' character !!!"
     return 1
   fi
 

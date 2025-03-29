@@ -1,18 +1,29 @@
 #! /bin/bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ---------------------------- Setting the current working directory for the script ---------------------------- #
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+
 # ---------------------------- Checking Databases Directory ---------------------------- #
 
 if [ ! -d "./DBs" ]
 then
-  mkdir $SCRIPT_DIR/DBs
+  mkdir ./DBs
 fi
 
-# ---------------------------- Sourcing Utils.sh ---------------------------- #
+# ---------------------------- Sourcing needed scripts ---------------------------- #
 
-if [ -f $SCRIPT_DIR/Utils.sh ]; then
-  source $SCRIPT_DIR/Utils.sh
+if [ -f "./Utils.sh" ]; then
+  source ./Utils.sh
 else
   echo "Error: Utils.sh not found !!!"
+  exit 1
+fi
+
+if [ -f "./Table_Menu.sh" ]; then
+  source ./Table_Menu.sh
+else
+  echo "Error: Table_Menu.sh not found !!!"
   exit 1
 fi
 
@@ -20,34 +31,36 @@ fi
 
 create_database() {
   echo "=== Creating a database ==="
-  echo "----------------------------"
+  echo "---------------------------"
   echo ""
 
   read -p "Enter the Database Name: " DB_NAME
 
   # Check the database name
-  validate_structure_name "Database" $DB_NAME
-  if [ $? -ne 0 ]; then
-    return 1
-  fi
+  until validate_structure_name "Database" $DB_NAME; do
+    echo ""
+    read -p "Enter the Database Name: " DB_NAME
+  done
 
   # Replace white spaces with _
-  DB_NAME=$(echo $DB_NAME | tr ' ' '_')
+  DB_NAME=$(echo "$DB_NAME" | tr ' ' '_')
 
-  # Check if the database name already exists 
-  check_database_exists $DB_NAME
-  if [ $? -eq 0 ]; then
+  # Check if the database name already exists
+  until ! check_database_exists "$DB_NAME"; do
     echo "Database '$DB_NAME' Already Exists !!!"
-    return 1
-  fi
+    echo ""
+    read -p "Enter the Database Name: " DB_NAME
+  done
 
   # Create database directory
-  mkdir "$SCRIPT_DIR/DBs/$DB_NAME"
+  mkdir "./DBs/$DB_NAME"
 
   if [ $? -eq 0 ]; then
+    clear
     echo "Database '$DB_NAME' Created Successfully !!!"
     return 0
   else
+    clear
     echo "Error: Database Creation Failed !!!"
     read
     return 1
@@ -82,16 +95,41 @@ drop_database() {
   read -p "Enter the Database Name: " DB_NAME
   
   # Replace white spaces with _
-  DB_NAME=$(echo $DB_NAME | tr ' ' '_')
+  DB_NAME=$(echo "$DB_NAME" | tr ' ' '_')
 
   # Check if the database name exists
-  check_database_exists $DB_NAME
-  
-  if [ $? -eq 0 ]; then
-    rm -r "./DBs/$DB_NAME"
-    echo "Database '$DB_NAME' Dropped !!!"
-  else
+  until check_database_exists "$DB_NAME"; do
     echo "Database '$DB_NAME' Does Not Exist !!!"
+    echo ""
+    read -p "Enter the Database Name: " DB_NAME
+  done
+
+  echo ""
+  read -p "Are you sure you want to drop '$DB_NAME' database ??? [y/n] : " CHOICE
+  if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
+    echo ""
+    echo "OK, Good choice :) ..."
+    return 0
+  fi
+  
+  echo ""
+  read -p "THIS IS THE LAST CHANCE !!! Are you sure you want to drop '$DB_NAME' database ??? [y/n] : " CHOICE
+  if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
+    echo ""
+    echo "OK, I thought so :) ..."
+    return 0
+  else
+    rm -rf "./DBs/$DB_NAME"
+  fi
+  
+
+  clear
+  if [ $? -eq 0 ]; then
+    echo "Database '$DB_NAME' Dropped Successfully !!!"
+    return 0
+  else
+    echo "Error: Database Dropping Failed !!!"
+    return 1
   fi
 }
 
@@ -106,45 +144,62 @@ connect_database() {
   DB_NAME=$(echo $DB_NAME | tr ' ' '_')
 
   # Check if the database name exists
-  check_database_exists $DB_NAME
-
-  if [ $? -eq 0 ]; then
-    source $SCRIPT_DIR/Table_Menu.sh $DB_NAME
-  else
+  until check_database_exists "$DB_NAME"; do
     echo "Database '$DB_NAME' Does Not Exist !!!"
-  fi
+    echo ""
+    read -p "Enter the Database Name: " DB_NAME
+  done
+
+  start_table_menu
+
+  return 0
 }
 
 # ---------------------------- Start of the main program ---------------------------- #
-PS3=">> "
-select input in "Create Database" "List Databases" "Connect To Database" "Drop Database" "Exit"
-do
+
+while true
+do 
   clear
-  case $REPLY in
+  echo "********** Welcome to the Database Engine **********"
+  echo "----------------------------------------------------"
+  echo ""
+  echo "1) Create Database"
+  echo "2) List All Databases"
+  echo "3) Connect To Database"
+  echo "4) Drop Database"
+  echo ""
+  echo "5) Exit"
+  echo ""
+  read -p ">> " CHOICE
+  case $CHOICE in 
     1)
       clear
       create_database
+      read -t 3
       ;;
     2)
       clear
       list_all_databases
+      read
       ;;
     3)
       clear
       connect_database
+      read -t 3
       ;;
     4)
       clear
       drop_database
+      read -t 3
       ;;
     5)
       clear
-      echo "Thanks For Using Our DBMS"
-      exit
+      echo "****** Thanks For Using Our DBMS ******"
+      read -t 3
+      clear
+      exit 0
       ;;
     *)
-      clear
-      echo "Invalid Option Selected !!!"
       ;;
   esac
 done
