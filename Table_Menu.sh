@@ -295,7 +295,6 @@ select_from_table() {
   echo "=== Selecting from a table ==="
   echo "------------------------------"
   echo ""
-
   read -p "Enter the Table Name: " TABLE_NAME
 
   # Replace white spaces with _
@@ -307,130 +306,155 @@ select_from_table() {
     echo ""
     read -p "Enter the Table Name: " TABLE_NAME
   done
-  
+
   # Fetching table's columns names
   TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
  
-  
-  declare -A COL_INDEX
-  
-  for i in "${!TABLE_HEADERS[@]}"; do
-    COL_INDEX["${TABLE_HEADERS[$i]}"]=$((i+1))
-  done
-  
   declare -a Selected_Columns
-  
   clear
   echo "=== Selecting from '$TABLE_NAME' table ==="
   echo "------------------------------------------"
   echo ""
-  
   read -p "Enter the Columns Names to Select or write '*' for all: " -a Selected_Columns
   
   if [ "${Selected_Columns[0]}" == "*" ]; then
     Selected_Columns=("${TABLE_HEADERS[@]}")
   fi
-  
+  # Check if the selected columns exist
   for i in "${!Selected_Columns[@]}"; do
-    if [[ -z "${COL_INDEX[${Selected_Columns[$i]}]}" ]]; then
-      echo "Error: Column '${Selected_Columns[$i]}' does not exist!"
-      continue
-    fi
+      col="${Selected_Columns[i]}"
+      until check_column_exists "${TABLE_HEADERS[@]}" "$col"; do
+          echo "Error: Column '$col' does not exist!"
+          read -p "Enter the Correct Column Name to Select: " col
+      done
+      Selected_Columns[i]="$col"
   done
-  
-  echo ""
-  # echo "Selected Columns: ${Selected_Columns[@]}"
+
+  clear 
+
   echo "Selected Columns: ${Selected_Columns[@]}"
-  
+  echo ""
+
   awk_print=""
-  
   for col in "${Selected_Columns[@]}"; do
-    col_index=${COL_INDEX[$col]}
-    if [[ -n "$col_index" ]]; then
+    col_index=-1
+    for i in "${!TABLE_HEADERS[@]}"; do
+        if [[ "${TABLE_HEADERS[i]}" == "$col" ]]; then
+          col_index=$((i + 1))
+          break
+        fi
+    done
+    if [[ $col_index -ne -1 ]]; then
         [[ -n "$awk_print" ]] && awk_print+=", "
         awk_print+='$'"$col_index"
     fi
   done
 
   declare -A Filters
-
-  echo ""
   read -p "Do you want to Filter the Data ? [y/n]: " CHOICE
-  
+  echo ""
   if [ "$CHOICE" == "y" -o "$CHOICE" == "Y" ]; then
     while true;
     do
       read -p "Enter the Column Name to Filter: " COLUMN_NAME
-      if [[ -z "${COL_INDEX[$COLUMN_NAME]}" ]]; then
-        echo "Error: Column '$COLUMN_NAME' does not exist!"
-        continue
-      fi
+      echo ""
+      until check_column_exists "${TABLE_HEADERS[@]}" "$COLUMN_NAME"; do
+          echo ""
+          echo "Error: Column '$COLUMN_NAME' does not exist!"
+          echo ""
+          read -p "Enter the Correct Column Name to Select: " COLUMN_NAME
+      done
       read -p "Enter the Value to Filter: " VALUE
       Filters[$COLUMN_NAME]=$VALUE
+      echo ""
       read -p "Do you want to Filter more data ? [y/n]: " CHOICE
+      echo ""
       if [ "$CHOICE" != "y" -a "$CHOICE" != "Y" ]; then
         break
       fi
     done
+    #print key-pair
     awk_cond=""
     for key in "${!Filters[@]}"; do
-        col_index=${COL_INDEX[$key]}
+        col_index=-1
+        for i in "${!TABLE_HEADERS[@]}"; do
+          if [[ "${TABLE_HEADERS[i]}" == "$key" ]]; then
+              col_index=$((i + 1))
+              break
+          fi
+        done
         if [[ -n "$col_index" ]]; then
           [[ -n "$awk_cond" ]] && awk_cond+=" && "
             awk_cond+='$'"${col_index} == \"${Filters[$key]}\""
         fi
     done
+    # Check if the condition is empty
     if [[ -n "$awk_cond" && -n "$awk_print" ]]; then
-      awk -F':' 'BEGIN { OFS=":" } { if ('"$awk_cond"') print '"$awk_print"' }' "./DBs/$DB_NAME/$TABLE_NAME.data"
-    fi
-    if [ $? -eq 0 ]; then
-      echo "Data Selected Successfully !!!"
-    else
-      echo "No Data Found With The Given Conditions !!!"
+      result=$(awk -F':' 'BEGIN { OFS="\t" } { if ('"$awk_cond"') print '"$awk_print"' }' "./DBs/$DB_NAME/$TABLE_NAME.data")
     fi
   else
+    # Check if the condition is empty
     if [[ -n "$awk_print" ]]; then
-      awk -F':' 'BEGIN { OFS=":" } { print '"$awk_print"' }' "./DBs/$DB_NAME/$TABLE_NAME.data"
+      result=$(awk -F':' 'BEGIN { OFS="\t" } { print '"$awk_print"' }' "./DBs/$DB_NAME/$TABLE_NAME.data")
     fi
-    if [ $? -eq 0 ]; then
-      echo "Data Selected Successfully !!!"
-    else
-      echo "No Data Found With The Given Conditions !!!"
-    fi
+  fi
+  num_rows=$(echo "$result" | grep . | wc -l)
+  if [ $num_rows -eq 0 ]; then
+    clear
+    echo "No Data Found,try again !!!"
+  else
+    echo -e "$(IFS=$'\t'; echo "${Selected_Columns[*]}")" | column -t
+    echo "----------------------------------"
+    echo "$result" | column -t  
+    echo ""
+    echo "$num_rows Row Returned !!!" 
   fi
 }
 
 update_table() {
-  read -p "Enter the Table Name: " TABLE_NAME_
+  echo "=== Updating '$TABLE_NAME' table ==="
+  echo "------------------------------------------"
+  echo ""
+  read -p "Enter the Table Name: " TABLE_NAME
+  # Replace white spaces with _
   TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
-  check_table_exists $TABLE_NAME
-  if [ $? -eq 1 ]; then
-    echo "Table '$TABLE_NAME' Does Not Exist !!!"
-    return 1
-  fi
-  TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "$SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.meta"))
-  declare -A COL_INDEX
-  for i in "${!TABLE_HEADERS[@]}"; do
-    COL_INDEX["${TABLE_HEADERS[$i]}"]=$((i+1))
-  done  
+  # Check if the table name exists
+  until check_table_exists $TABLE_NAME; do
+    echo "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    echo ""
+    read -p "Enter the Table Name: " TABLE_NAME
+  done
+  # Fetching table's columns names
+  TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
+
   while true;
   do
+    clear
     echo "=== Updating '$TABLE_NAME' table ==="
     echo "------------------------------------------"
     echo ""
-    read -p "Enter the Column Name to Update: " COLUMN_NAME
-    if [[ -z "${COL_INDEX[$COLUMN_NAME]}" ]]; then
-      echo "Error: Column '$COLUMN_NAME' does not exist!"
-      continue
-    fi
-    COL_INDEX_TO_UPDATE="${COL_INDEX[$COLUMN_NAME]}"
+    read -p "Enter the Column Name to Filter: " COLUMN_NAME
+    echo ""
+    until check_column_exists "${TABLE_HEADERS[@]}" "$COLUMN_NAME"; do
+        echo ""
+        echo "Error: Column '$COLUMN_NAME' does not exist!"
+        echo ""
+        read -p "Enter the Correct Column Name to Select: " COLUMN_NAME
+    done
+    # Find the column index
+    for ((i=0; i<${#TABLE_HEADERS[@]}; i++)); do
+      if [ "${TABLE_HEADERS[i]}" == "$COLUMN_NAME" ]; then
+        COL_INDEX_TO_UPDATE=$((i + 1))
+        break
+      fi
+    done
     read -p "Enter the Row Index to Update: " INDEX
     if ! [[ "$INDEX" =~ ^[0-9]+$ ]]; then
       echo "Error: Invalid row index!"
       continue
     fi
     read -p "Enter the New Value: " NEW_VALUE
-    awk '
+    result=$(awk '
       BEGIN { FS = ":"; OFS = ":" }
       {
         if (NR == '$INDEX') {
@@ -438,11 +462,14 @@ update_table() {
         }
         print $0
       }
-    ' $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data > $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data.tmp && mv $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data.tmp $SCRIPT_DIR/DBs/$DB_NAME/$TABLE_NAME.data
-    if [ $? -eq 0 ]; then
-      echo "Data Updated Successfully !!!"
+    ' ./DBs/$DB_NAME/$TABLE_NAME.data >> ./DBs/$DB_NAME/$TABLE_NAME.data.tmp && mv ./DBs/$DB_NAME/$TABLE_NAME.data.tmp ./DBs/$DB_NAME/$TABLE_NAME.data)
+    clear
+    if [ $? -ne 0 ]; then    
+      clear  
+      echo "No Data Found,try again !!!"
     else
-      echo "Error: Data Update Failed !!!"
+      clear
+      echo "Data Updated Successfully !!!"
     fi
     echo ""
     read -p "Do you want to Update more data ? [y/n]: " CHOICE
