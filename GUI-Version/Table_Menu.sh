@@ -23,8 +23,8 @@ create_table_structure() {
       fi
     fi
 
-    COLUMN_NAME=$(echo "$COLUMN_DATA" | cut -d ':' -f 1)
-    COLUMN_TYPE=$(echo "$COLUMN_DATA" | cut -d ':' -f 2)
+    local COLUMN_NAME=$(echo "$COLUMN_DATA" | cut -d ':' -f 1)
+    local COLUMN_TYPE=$(echo "$COLUMN_DATA" | cut -d ':' -f 2)
 
     # Check column name
     if ! $(validate_structure_name "Column" "$COLUMN_NAME"); then
@@ -58,13 +58,13 @@ create_table_structure() {
   zenity --question --title="Primary Key" --text "Do you need a Primary Key ?"
   if [ $? -eq 0 ]; then
     PRIMARY_KEY=$(zenity --list --title="Primary Key" --text="Choose the Primary Key:" \
-      --column="Columns" "${COLUMNS_ORDER[@]}" --width=400 --ok-label="Select" --cancel-label="No Primary Key")
+      --column="Columns" "${COLUMNS_ORDER[@]}" --width=400 --height=300 --ok-label="Select" --cancel-label="No Primary Key")
     
     if [ $? -eq 0 ] ;then
       until [ -n "$PRIMARY_KEY" ]; do
         zenity --error --text "Primary Key is not selected"
         PRIMARY_KEY=$(zenity --list --title="Primary Key" --text="Choose the Primary Key:" \
-          --column="Columns" "${COLUMNS_ORDER[@]}" --width=400 --ok-label="Select" --cancel-label="No Primary Key")
+          --column="Columns" "${COLUMNS_ORDER[@]}" --width=400 --height=300 --ok-label="Select" --cancel-label="No Primary Key")
       done
     fi    
   fi
@@ -260,7 +260,7 @@ insert_data() {
     done
 
     # Insert data into the table
-    echo "${USER_INPUT}" >> "./DBs/$DB_NAME/$TB_NAME.data"
+    echo "${USER_INPUT//|/:}" >> "./DBs/$DB_NAME/$TB_NAME.data"
     zenity --info --title="Success" --text="Data Inserted Successfully !!!" --width=300
 
     # Ask if the user wants to insert more data
@@ -297,7 +297,6 @@ insert_into_table() {
   insert_data $TABLE_NAME
 
   if [ $? -eq 0 ]; then
-    zenity --info --title="Success" --text="Data Inserted Successfully !!!" --width=300
     return 0
   else
     zenity --error --title="Error" --text="Data Insertion Failed" --width=300
@@ -317,14 +316,14 @@ select_from_table() {
     return 0
   fi
   
-  TABLE_NAME=$(zenity --list --title="Insert Into Table" --text="Select a table to select from:" \
+  TABLE_NAME=$(zenity --list --title="Select From Table" --text="Select a table to select from:" \
     --column="Table Name" "${AVAILABLE_TABLES[@]}" --width=400 --height=300)
   
   if [ $? -ne 0 ]; then return 0; fi  # User canceled
   
   until [ -n "$TABLE_NAME" ]; do
     zenity --error --text "Table name is not selected"
-    TABLE_NAME=$(zenity --list --title="Insert Into Table" --text="Select a table to select from:" \
+    TABLE_NAME=$(zenity --list --title="Select From Table" --text="Select a table to select from:" \
       --column="Table Name" "${AVAILABLE_TABLES[@]}" --width=400 --height=300)
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
   done
@@ -339,7 +338,8 @@ select_from_table() {
     --separator="|" --width=400 --height=300 --extra-button='Select All' \
     --ok-label="Select" --cancel-label="Cancel")
 
-  if [ $? -ne 0 ]; then return 0; fi # User canceled
+
+  if [ $? -eq 1 ] && [ "$SELECTED_COLUMNS" == "" ]; then return 0; fi # User canceled
 
   until [ -n "$SELECTED_COLUMNS" ]; do
     zenity --error --text "No columns is selected"
@@ -348,7 +348,7 @@ select_from_table() {
       $(for col in "${TABLE_HEADERS[@]}"; do echo "FALSE" "$col"; done) \
       --separator="|" --width=400 --height=300 --extra-button='Select All' \
       --ok-label="Select" --cancel-label="Cancel")
-    if [ $? -ne 0 ]; then return 0; fi  # User canceled
+    if [ $? -eq 1 ]; then return 0; fi  # User canceled
   done
   
   # Convert selected columns into an array
