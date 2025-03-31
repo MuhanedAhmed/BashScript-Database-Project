@@ -1,0 +1,3 @@
+name:age:id:dob:address
+str:num:num:date:str
+PRIMARY_KEY:id

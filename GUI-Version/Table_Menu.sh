@@ -461,7 +461,7 @@ update_table() {
     return 0
   fi
 
-  TABLE_NAME=$(zenity --list --title="Insert Into Table" --text="Select a table to select from:" \
+  TABLE_NAME=$(zenity --list --title="Uodate Table" --text="Select a table to Update:" \
     --column="Table Name" "${AVAILABLE_TABLES[@]}" --width=400 --height=300)
   
   if [ $? -ne 0 ]; then return 0; fi  # User canceled
@@ -469,8 +469,8 @@ update_table() {
   # Check if the table name exists
   until [ -n "$TABLE_NAME" ]; do
     zenity --error --text "Table name is not selected"
-    TABLE_NAME=$(zenity --list --title="Insert Into Table" --text="Select a table to select from:" \
-      --column="Table Name" "${AVAILABLE_TABLES[@]}" --width=400 --height=300)
+    TABLE_NAME=$(zenity --list --title="Uodate Table" --text="Select a table to Update:" \
+    --column="Table Name" "${AVAILABLE_TABLES[@]}" --width=400 --height=300)
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
   done
 
@@ -479,13 +479,13 @@ update_table() {
   while true;
   do
     COLUMN_NAME=$(zenity --list --title="Update From Table '$TB_NAME'" --text="Select a column to update:" \
-    --column="Available Columns" "${TABLE_COLUMNS[@]}" --width=400 --height=300 --ok-label="Update")
+    --column="Available Columns" "${TABLE_HEADERS[@]}" --width=400 --height=300 --ok-label="Update")
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
   
     until [ -n "$COLUMN_NAME" ]; do
     zenity --error --text "Column name is not selected"
     COLUMN_NAME=$(zenity --list --title="Update From Table '$TB_NAME'" --text="Select a column to Upadte" \
-      --column="Available Columns" "${TABLE_COLUMNS[@]}" --width=400 --height=300 --ok-label="Update")
+      --column="Available Columns" "${TABLE_HEADERS[@]}" --width=400 --height=300 --ok-label="Update")
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
     done
     # Find the column index
@@ -518,7 +518,7 @@ update_table() {
       if [ $? -ne 0 ]; then return 0; fi  # User canceled
     done
     result=$(awk '
-      BEGIN { FS = ":"; OFS = ":" }
+      BEGIN { FS = "|"; OFS = "|" }
       {
         if (NR == '$INDEX') {
           $'$COL_INDEX_TO_UPDATE' = "'$NEW_VALUE'"
