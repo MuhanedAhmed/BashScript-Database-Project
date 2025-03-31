@@ -451,6 +451,87 @@ select_from_table() {
 }
 
 update_table() {
+  local TABLE_NAME=""
+  local -a AVAILABLE_TABLES=()
+
+  AVAILABLE_TABLES=($(get_tables))
+
+  if [ ${#AVAILABLE_TABLES[@]} -eq 0 ]; then
+    zenity --info --title="No Tables" --text="No Tables Available To Update From !!!" --width=300
+    return 0
+  fi
+
+  TABLE_NAME=$(zenity --list --title="Insert Into Table" --text="Select a table to select from:" \
+    --column="Table Name" "${AVAILABLE_TABLES[@]}" --width=400 --height=300)
+  
+  if [ $? -ne 0 ]; then return 0; fi  # User canceled
+  
+  # Check if the table name exists
+  until [ -n "$TABLE_NAME" ]; do
+    zenity --error --text "Table name is not selected"
+    TABLE_NAME=$(zenity --list --title="Insert Into Table" --text="Select a table to select from:" \
+      --column="Table Name" "${AVAILABLE_TABLES[@]}" --width=400 --height=300)
+    if [ $? -ne 0 ]; then return 0; fi  # User canceled
+  done
+
+  # Fetching table's columns names
+  TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
+  while true;
+  do
+    COLUMN_NAME=$(zenity --list --title="Update From Table '$TB_NAME'" --text="Select a column to update:" \
+    --column="Available Columns" "${TABLE_COLUMNS[@]}" --width=400 --height=300 --ok-label="Update")
+    if [ $? -ne 0 ]; then return 0; fi  # User canceled
+  
+    until [ -n "$COLUMN_NAME" ]; do
+    zenity --error --text "Column name is not selected"
+    COLUMN_NAME=$(zenity --list --title="Update From Table '$TB_NAME'" --text="Select a column to Upadte" \
+      --column="Available Columns" "${TABLE_COLUMNS[@]}" --width=400 --height=300 --ok-label="Update")
+    if [ $? -ne 0 ]; then return 0; fi  # User canceled
+    done
+    # Find the column index
+    for ((i=0; i<${#TABLE_HEADERS[@]}; i++)); do
+      if [ "${TABLE_HEADERS[i]}" == "$COLUMN_NAME" ]; then
+        COL_INDEX_TO_UPDATE=$((i + 1))
+        break
+      fi
+    done
+    INDEX=$(zenity --entry --title="update From Table '$TB_NAME'" --text="Enter the Row Index to Update:" \
+    --width=400 --ok-label="update")
+    if [ $? -ne 0 ]; then return 0; fi  # User canceled
+  
+    until [ -n "$INDEX" ]; do
+      zenity --error --text "Value can not be empty"
+      INDEX=$(zenity --entry --title="update From Table '$TB_NAME'" --text="Enter the Row Index to Update:" \
+        --width=400 --ok-label="update")
+      if [ $? -ne 0 ]; then return 0; fi  # User canceled
+    done
+    if ! [[ "$INDEX" =~ ^[0-9]+$ ]]; then
+      zenity --warning --text "Error: Invalid row index!"
+    fi
+    NEW_VALUE=$(zenity --entry --title="update From Table '$TB_NAME'" --text="Enter the New Value to update field:" \
+    --width=400 --ok-label="update")
+    if [ $? -ne 0 ]; then return 0; fi  # User canceled
+    until [ -n "$NEW_VALUE" ]; do
+      zenity --error --text "Value can not be empty"
+      NEW_VALUE=$(zenity --entry --title="update From Table '$TB_NAME'" --text="Enter the New Value to update field :" \
+        --width=400 --ok-label="update")
+      if [ $? -ne 0 ]; then return 0; fi  # User canceled
+    done
+    result=$(awk '
+      BEGIN { FS = ":"; OFS = ":" }
+      {
+        if (NR == '$INDEX') {
+          $'$COL_INDEX_TO_UPDATE' = "'$NEW_VALUE'"
+        }
+        print $0
+      }
+    ' ./DBs/$DB_NAME/$TABLE_NAME.data >> ./DBs/$DB_NAME/$TABLE_NAME.data.tmp && mv ./DBs/$DB_NAME/$TABLE_NAME.data.tmp ./DBs/$DB_NAME/$TABLE_NAME.data)
+    if [ $? -ne 0 ]; then    
+      zenity --warning --text "No Data Found,try again !!!"  
+    else
+      zenity --info --title="Success" --text="Data Updated Successfully " --width=300
+    fi
+    done
   
 }
 
