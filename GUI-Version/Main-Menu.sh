@@ -100,7 +100,7 @@ drop_database() {
   
   if [ $? -ne 0 ] ]; then return 0; fi  # User canceled
 
-  until [ -n "$TABLE_NAME" ]; do
+  until [ -n "$DB_NAME" ]; do
     zenity --error --text "database name is not selected"
     DB_NAME=$(zenity --list --title="Drop Database" --text="Select database to drop:" \
     --column="Database Name" "${AVAILABLE_DATABASES[@]}" --width=400 --height=300)
