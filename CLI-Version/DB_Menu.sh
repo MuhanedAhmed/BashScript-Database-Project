@@ -92,6 +92,11 @@ drop_database() {
   echo "---------------------------"
   echo ""
 
+  if [ -z "$(get_databases)" ]; then
+    echo "No Databases Available To Drop !!!"
+    return 0
+  fi
+
   read -p "Enter the Database Name: " DB_NAME
   
   # Replace white spaces with _
@@ -137,6 +142,11 @@ connect_database() {
   echo "=== Connecting to a database ==="
   echo "--------------------------------"
   echo ""
+
+  if [ -z "$(get_databases)" ]; then
+    echo "No Databases Available To Connect !!!"
+    return 0
+  fi
 
   read -p "Enter the Database Name: " DB_NAME
 
