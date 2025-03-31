@@ -548,6 +548,13 @@ delete_rows() {
   echo ""
   read -p "Enter the value to match for deletion: " VALUE
 
+  # Check if the value is empty
+  until [[ -n "$VALUE" ]]; do
+    echo "Error: Value cannot be empty !!!"
+    echo ""
+    read -p "Enter the value to match for deletion: " VALUE
+  done
+
   echo ""
   read -p "Should the match be exact? [y/n]: " EXACT_MATCH
   
@@ -615,6 +622,12 @@ delete_from_table() {
 # ---------------------------- Table Menu Function ---------------------------- #
 
 start_table_menu() {
+
+  # Check if the database name is set
+  if [ -z "$DB_NAME" ]; then
+    echo "Error: Database name is not set !!!"
+    return 1
+  fi
   
   while true
   do 
