@@ -202,12 +202,12 @@ drop_table() {
 }
 
 insert_data() {
-  local TB_NAME="$1" 
-  META_FILE="./DBs/$DB_NAME/$TB_NAME.meta"
+  local TABLE_NAME="$1" 
+  META_FILE="./DBs/$DB_NAME/$TABLE_NAME.meta"
   
   # Check if the meta file exists
   if [ ! -f "$META_FILE" ]; then
-  zenity --error --title="Error" --text="Unable to find '$TB_NAME'.meta file !!!" --width=300
+  zenity --error --title="Error" --text="Unable to find '$TABLE_NAME'.meta file !!!" --width=300
     return 1
   fi
 
@@ -225,7 +225,7 @@ insert_data() {
   while true; do
 
     # Show Zenity form
-    USER_INPUT=$(zenity --forms --title="Insert Into '$TB_NAME'" \
+    USER_INPUT=$(zenity --forms --title="Insert Into '$TABLE_NAME'" \
       --text="Enter values for each column:" --separator="|" \
       $(for ((i=0; i<${#TABLE_COLUMNS[@]}; i++)); do echo "--add-entry='${TABLE_COLUMNS[i]}'"; done) \
       --width=400 --height=300)
@@ -253,14 +253,14 @@ insert_data() {
       
       # Validate primary key uniqueness
       if [ -n "$PRIMARY_KEY" ] && [ "${TABLE_COLUMNS[i]}" == "$PRIMARY_KEY" ]; then
-        if ! check_primary_key "$TB_NAME" $((i + 1)) "$VALUE"; then
+        if ! check_primary_key "$TABLE_NAME" $((i + 1)) "$VALUE"; then
           continue 2
         fi
       fi
     done
 
     # Insert data into the table
-    echo "${USER_INPUT//|/:}" >> "./DBs/$DB_NAME/$TB_NAME.data"
+    echo "${USER_INPUT//|/:}" >> "./DBs/$DB_NAME/$TABLE_NAME.data"
     zenity --info --title="Success" --text="Data Inserted Successfully !!!" --width=300
 
     # Ask if the user wants to insert more data
@@ -384,7 +384,7 @@ select_from_table() {
     while true; do
       # Select Column for Filtering
       FILTER_COLUMN=$(zenity --list --title "Select Filter Column" --text "Choose a column to filter by:" \
-          --radiolist --column "Select" --column "Column Name" \
+          --radiolist --column "Select" --column "Column Name" --height=300 --width=400 \
           $(for col in "${TABLE_HEADERS[@]}"; do echo "FALSE" "$col"; done))
 
       if [[ -z "$FILTER_COLUMN" ]]; then
@@ -461,7 +461,7 @@ update_table() {
     return 0
   fi
 
-  TABLE_NAME=$(zenity --list --title="Uodate Table" --text="Select a table to Update:" \
+  TABLE_NAME=$(zenity --list --title="Update Table" --text="Select a table to Update:" \
     --column="Table Name" "${AVAILABLE_TABLES[@]}" --width=400 --height=300)
   
   if [ $? -ne 0 ]; then return 0; fi  # User canceled
@@ -469,25 +469,30 @@ update_table() {
   # Check if the table name exists
   until [ -n "$TABLE_NAME" ]; do
     zenity --error --text "Table name is not selected"
-    TABLE_NAME=$(zenity --list --title="Uodate Table" --text="Select a table to Update:" \
+    TABLE_NAME=$(zenity --list --title="Update Table" --text="Select a table to Update:" \
     --column="Table Name" "${AVAILABLE_TABLES[@]}" --width=400 --height=300)
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
   done
 
   # Fetching table's columns names
   TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
+  
   while true;
   do
-    COLUMN_NAME=$(zenity --list --title="Update From Table '$TB_NAME'" --text="Select a column to update:" \
-    --column="Available Columns" "${TABLE_HEADERS[@]}" --width=400 --height=300 --ok-label="Update")
+    COLUMN_NAME=$(zenity --list --title="Update From Table '$TABLE_NAME'" --text="Select a column to update:" \
+      --column="Available Columns" "${TABLE_HEADERS[@]}" --width=400 --height=300 --ok-label="Update")
+    
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
   
     until [ -n "$COLUMN_NAME" ]; do
-    zenity --error --text "Column name is not selected"
-    COLUMN_NAME=$(zenity --list --title="Update From Table '$TB_NAME'" --text="Select a column to Upadte" \
-      --column="Available Columns" "${TABLE_HEADERS[@]}" --width=400 --height=300 --ok-label="Update")
-    if [ $? -ne 0 ]; then return 0; fi  # User canceled
+      
+      zenity --error --text "Column name is not selected"
+      
+      COLUMN_NAME=$(zenity --list --title="Update From Table '$TABLE_NAME'" --text="Select a column to update:" \
+        --column="Available Columns" "${TABLE_HEADERS[@]}" --width=400 --height=300 --ok-label="Update")
+      if [ $? -ne 0 ]; then return 0; fi  # User canceled
     done
+    
     # Find the column index
     for ((i=0; i<${#TABLE_HEADERS[@]}; i++)); do
       if [ "${TABLE_HEADERS[i]}" == "$COLUMN_NAME" ]; then
@@ -495,54 +500,66 @@ update_table() {
         break
       fi
     done
-    INDEX=$(zenity --entry --title="update From Table '$TB_NAME'" --text="Enter the Row Index to Update:" \
-    --width=400 --ok-label="update")
+    
+    INDEX=$(zenity --entry --title="Update From Table '$TABLE_NAME'" --text="Enter the Row Index to Update:" \
+      --width=400 --ok-label="Update")
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
   
     until [ -n "$INDEX" ]; do
       zenity --error --text "Value can not be empty"
-      INDEX=$(zenity --entry --title="update From Table '$TB_NAME'" --text="Enter the Row Index to Update:" \
-        --width=400 --ok-label="update")
+      
+      INDEX=$(zenity --entry --title="Update From Table '$TABLE_NAME'" --text="Enter the Row Index to Update:" \
+        --width=400 --ok-label="Update")
       if [ $? -ne 0 ]; then return 0; fi  # User canceled
     done
-    if ! [[ "$INDEX" =~ ^[0-9]+$ ]]; then
-      zenity --warning --text "Error: Invalid row index!"
-    fi
-    NEW_VALUE=$(zenity --entry --title="update From Table '$TB_NAME'" --text="Enter the New Value to update field:" \
-    --width=400 --ok-label="update")
+    
+    until [[ "$INDEX" =~ ^[0-9]+$ ]]; do
+      zenity --error --text "Invalid row index"
+
+      INDEX=$(zenity --entry --title="Update From Table '$TABLE_NAME'" --text="Enter the Row Index to Update:" \
+        --width=400 --ok-label="Update")
+      if [ $? -ne 0 ]; then return 0; fi  # User canceled
+    done
+    
+    NEW_VALUE=$(zenity --entry --title="update From Table '$TABLE_NAME'" --text="Enter the New Value to update field:" \
+      --width=400 --ok-label="update")
+    
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
+    
     until [ -n "$NEW_VALUE" ]; do
       zenity --error --text "Value can not be empty"
-      NEW_VALUE=$(zenity --entry --title="update From Table '$TB_NAME'" --text="Enter the New Value to update field :" \
+      NEW_VALUE=$(zenity --entry --title="update From Table '$TABLE_NAME'" --text="Enter the New Value to update field :" \
         --width=400 --ok-label="update")
       if [ $? -ne 0 ]; then return 0; fi  # User canceled
     done
+    
     result=$(awk '
-      BEGIN { FS = "|"; OFS = "|" }
+      BEGIN { FS = ":"; OFS = ":"}
       {
         if (NR == '$INDEX') {
           $'$COL_INDEX_TO_UPDATE' = "'$NEW_VALUE'"
         }
+
         print $0
       }
     ' ./DBs/$DB_NAME/$TABLE_NAME.data >> ./DBs/$DB_NAME/$TABLE_NAME.data.tmp && mv ./DBs/$DB_NAME/$TABLE_NAME.data.tmp ./DBs/$DB_NAME/$TABLE_NAME.data)
+    
     if [ $? -ne 0 ]; then    
       zenity --warning --text "No Data Found,try again !!!"  
     else
       zenity --info --title="Success" --text="Data Updated Successfully " --width=300
     fi
-    done
-  
+  done
 }
 
 delete_rows() {
-  TB_NAME="$1"
+  TABLE_NAME="$1"
   ALL_ROWS="$2"
 
   # Check if the user wants to delete all rows
   if [ -n "$ALL_ROWS" ]; then
     # Confirm deletion
-    zenity --question --title="Confirm" --text="Are you sure you want to delete ALL data from '$TB_NAME' table ???" 
+    zenity --question --title="Confirm" --text="Are you sure you want to delete ALL data from '$TABLE_NAME' table ???" 
     if [ $? -ne 0 ]; then
       zenity --info --title="Cancelled" --text="OK, Good choice :) ..." --width=300
       return 0
@@ -550,32 +567,32 @@ delete_rows() {
     
     # Final confirmation
     zenity --question --title="Final Confirmation" \
-      --text="THIS IS THE LAST CHANCE !!! Are you sure you want to delete ALL data from '$TB_NAME' table ???" \
+      --text="THIS IS THE LAST CHANCE !!! Are you sure you want to delete ALL data from '$TABLE_NAME' table ???" \
       --width=400 --ok-label="Yes, Delete All" --cancel-label="No, Keep It"
     if [ $? -ne 0 ]; then
       zenity --info --title="Cancelled" --text="OK, I thought so :) ..." --width=300
       return 0
     fi
-      echo "" > "./DBs/$DB_NAME/$TB_NAME.data"
+      echo "" > "./DBs/$DB_NAME/$TABLE_NAME.data"
       zenity --info --title="Success" --text="All Rows Deleted Successfully !!!" --width=300
       return 0
   fi
 
   # Prompt the user for a specific deletion criteria
 
-  META_FILE="./DBs/$DB_NAME/$TB_NAME.meta"
-  DATA_FILE="./DBs/$DB_NAME/$TB_NAME.data"
+  META_FILE="./DBs/$DB_NAME/$TABLE_NAME.meta"
+  DATA_FILE="./DBs/$DB_NAME/$TABLE_NAME.data"
 
   # Extract column names from the metadata file
   TABLE_COLUMNS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) printf "%s\n", $i }' "$META_FILE"))
   
-  COLUMN_NAME=$(zenity --list --title="Delete From Table '$TB_NAME'" --text="Select a column to filter rows for deletion:" \
+  COLUMN_NAME=$(zenity --list --title="Delete From Table '$TABLE_NAME'" --text="Select a column to filter rows for deletion:" \
     --column="Available Columns" "${TABLE_COLUMNS[@]}" --width=400 --height=300 --ok-label="Select")
   if [ $? -ne 0 ]; then return 0; fi  # User canceled
   
   until [ -n "$COLUMN_NAME" ]; do
     zenity --error --text "Column name is not selected"
-    COLUMN_NAME=$(zenity --list --title="Delete From Table '$TB_NAME'" --text="Select a column to filter rows for deletion:" \
+    COLUMN_NAME=$(zenity --list --title="Delete From Table '$TABLE_NAME'" --text="Select a column to filter rows for deletion:" \
       --column="Available Columns" "${TABLE_COLUMNS[@]}" --width=400 --height=300 --ok-label="Select")
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
   done
@@ -590,13 +607,13 @@ delete_rows() {
   done
 
   # Delete rows matching the criteria
-  VALUE=$(zenity --entry --title="Delete From Table '$TB_NAME'" --text="Enter the value to match for deletion:" \
+  VALUE=$(zenity --entry --title="Delete From Table '$TABLE_NAME'" --text="Enter the value to match for deletion:" \
     --width=400 --ok-label="Delete")
   if [ $? -ne 0 ]; then return 0; fi  # User canceled
   
   until [ -n "$VALUE" ]; do
     zenity --error --text "Value can not be empty"
-    VALUE=$(zenity --entry --title="Delete From Table '$TB_NAME'" --text="Enter the value to match for deletion:" \
+    VALUE=$(zenity --entry --title="Delete From Table '$TABLE_NAME'" --text="Enter the value to match for deletion:" \
     --width=400 --ok-label="Delete")
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
   done
