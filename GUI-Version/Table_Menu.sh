@@ -500,35 +500,34 @@ update_table() {
         break
       fi
     done
-    
-    INDEX=$(zenity --entry --title="Update From Table '$TABLE_NAME'" --text="Enter the Row Index to Update:" \
-      --width=400 --ok-label="Update")
+    mapfile -t Selected_COL_DATA < <(awk -F':' '{print $'"$COL_INDEX_TO_UPDATE"'}' ./DBs/$DB_NAME/$TABLE_NAME.data)
+    OLD_VALUE=$(zenity --list --title="Update From Table '$TABLE_NAME'" --text="Select a value to update:" \
+      --column="Available Values" "${Selected_COL_DATA[@]}" --width=400 --height=300 --ok-label="Update")
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
-  
-    until [ -n "$INDEX" ]; do
-      zenity --error --text "Value can not be empty"
-      
-      INDEX=$(zenity --entry --title="Update From Table '$TABLE_NAME'" --text="Enter the Row Index to Update:" \
-        --width=400 --ok-label="Update")
-      if [ $? -ne 0 ]; then return 0; fi  # User canceled
-    done
-    
-    until [[ "$INDEX" =~ ^[0-9]+$ ]]; do
-      zenity --error --text "Invalid row index"
 
-      INDEX=$(zenity --entry --title="Update From Table '$TABLE_NAME'" --text="Enter the Row Index to Update:" \
-        --width=400 --ok-label="Update")
+    #get index of OLD Value
+    INDEX=$(awk -F':' -v value="$OLD_VALUE" -v col="$COL_INDEX_TO_UPDATE" '{
+      if ($col == value) {
+        print NR
+        exit
+      }
+    }' ./DBs/$DB_NAME/$TABLE_NAME.data)
+    
+    until [ -n "$INDEX" ]; do
+      zenity --error --text "Value is not selected"
+      OLD_VALUE=$(zenity --list --title="Update From Table '$TABLE_NAME'" --text="Select a value to update:" \
+        --column="Available Values" "${Selected_COL_DATA[@]}" --width=400 --height=300 --ok-label="Update")
       if [ $? -ne 0 ]; then return 0; fi  # User canceled
     done
     
-    NEW_VALUE=$(zenity --entry --title="update From Table '$TABLE_NAME'" --text="Enter the New Value to update field:" \
+    NEW_VALUE=$(zenity --entry --title="update From Table '$TABLE_NAME'" --text="Enter the New Value Of Old Value '$OLD_VALUE' to update:" \
       --width=400 --ok-label="update")
     
     if [ $? -ne 0 ]; then return 0; fi  # User canceled
     
     until [ -n "$NEW_VALUE" ]; do
       zenity --error --text "Value can not be empty"
-      NEW_VALUE=$(zenity --entry --title="update From Table '$TABLE_NAME'" --text="Enter the New Value to update field :" \
+      NEW_VALUE=$(zenity --entry --title="update From Table '$TABLE_NAME'" --text="Enter the New Value Of Old Value '$OLD_VALUE' to update:" \
         --width=400 --ok-label="update")
       if [ $? -ne 0 ]; then return 0; fi  # User canceled
     done

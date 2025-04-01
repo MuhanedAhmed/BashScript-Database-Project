@@ -448,12 +448,43 @@ update_table() {
         break
       fi
     done
-    read -p "Enter the Row Index to Update: " INDEX
-    if ! [[ "$INDEX" =~ ^[0-9]+$ ]]; then
-      echo "Error: Invalid row index!"
-      continue
-    fi
+    # Get the data from the column
+    mapfile -t Selected_COL_DATA < <(awk -F':' '{print $'"$COL_INDEX_TO_UPDATE"'}' ./DBs/$DB_NAME/$TABLE_NAME.data)
+    echo "Available Data in '$COLUMN_NAME' Column:"
+    echo "========================================="
+    for ((i=0; i<${#Selected_COL_DATA[@]}; i++)); do
+      echo "$((i + 1))) ${Selected_COL_DATA[i]}"
+    done
+    echo ""
+
+    read -p "Enter a value to update: " OLD_VALUE
+    #get index of OLD Value
+    INDEX=$(awk -F':' -v value="$OLD_VALUE" -v col="$COL_INDEX_TO_UPDATE" '{
+      if ($col == value) {
+        print NR
+        exit
+      }
+    }' ./DBs/$DB_NAME/$TABLE_NAME.data)
+
+    until [ -n "$INDEX" ]; do
+      echo "Value is not selected"
+      read -p "Enter a value to update: " OLD_VALUE
+      #get index of OLD Value
+      INDEX=$(awk -F':' -v value="$OLD_VALUE" -v col="$COL_INDEX_TO_UPDATE" '{
+        if ($col == value) {
+          print NR
+          exit
+        }
+      }' ./DBs/$DB_NAME/$TABLE_NAME.data)
+    done
+
     read -p "Enter the New Value: " NEW_VALUE
+    until [[ -n "$NEW_VALUE" ]]; do
+      echo "Error: Value cannot be empty !!!"
+      echo ""
+      read -p "Enter the New Value: " NEW_VALUE
+    done
+    
     result=$(awk '
       BEGIN { FS = ":"; OFS = ":" }
       {
