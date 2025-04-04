@@ -16,40 +16,40 @@ fi
 if [ -f "./Utils.sh" ]; then
   source ./Utils.sh
 else
-  echo "Error: Utils.sh not found !!!"
+  error "Error: Utils.sh not found !!!"
   exit 1
 fi
 
 if [ -f "./Table_Menu.sh" ]; then
   source ./Table_Menu.sh
 else
-  echo "Error: Table_Menu.sh not found !!!"
+  error "Error: Table_Menu.sh not found !!!"
   exit 1
 fi
 
 # ---------------------------- Database Functions ---------------------------- #
 
 create_database() {
-  echo "=== Creating a database ==="
-  echo "---------------------------"
+  info "=== Creating a database ==="
+  info "---------------------------"
   echo ""
 
-  read -p "Enter the Database Name: " DB_NAME
+  read -r -p "Enter the Database Name: " DB_NAME
 
   # Check the database name
   until validate_structure_name "Database" $DB_NAME; do
     echo ""
-    read -p "Enter the Database Name: " DB_NAME
+    read -r -p "Enter the Database Name: " DB_NAME
   done
 
   # Replace white spaces with _
   DB_NAME=$(echo "$DB_NAME" | tr ' ' '_')
 
-  # Check if the database name already exists
+  # Check if the database name alread -ry exists
   until ! check_database_exists "$DB_NAME"; do
-    echo "Database '$DB_NAME' Already Exists !!!"
+    error "Error: Database '$DB_NAME' Alread -ry Exists !!!"
     echo ""
-    read -p "Enter the Database Name: " DB_NAME
+    read -r -p "Enter the Database Name: " DB_NAME
   done
 
   # Create database directory
@@ -57,25 +57,25 @@ create_database() {
 
   if [ $? -eq 0 ]; then
     clear
-    echo "Database '$DB_NAME' Created Successfully !!!"
+    success "Database '$DB_NAME' Created Successfully !!!"
     return 0
   else
     clear
-    echo "Error: Database Creation Failed !!!"
-    read
+    error "Error: Database Creation Failed !!!"
+    read -r
     return 1
   fi
 }
 
 list_all_databases() {
-  echo "=== Listing databases ==="
-  echo "-------------------------"
+  info "=== Listing databases ==="
+  info "-------------------------"
   echo ""
 
   AVAILABLE_DATABASES=($(get_databases))
 
   if [ ${#AVAILABLE_DATABASES} -eq 0 ]; then
-    echo "No Databases Available !!!"
+    success "No Databases Available !!!"
   else
     echo "The Available Databases are : "
     echo ""
@@ -88,29 +88,29 @@ list_all_databases() {
 }
 
 drop_database() {
-  echo "=== Dropping a database ==="
-  echo "---------------------------"
+  info "=== Dropping a database ==="
+  info "---------------------------"
   echo ""
 
   if [ -z "$(get_databases)" ]; then
-    echo "No Databases Available To Drop !!!"
+    success "No Databases Available To Drop !!!"
     return 0
   fi
 
-  read -p "Enter the Database Name: " DB_NAME
+  read -r -p "Enter the Database Name: " DB_NAME
   
   # Replace white spaces with _
   DB_NAME=$(echo "$DB_NAME" | tr ' ' '_')
 
   # Check if the database name exists
   until check_database_exists "$DB_NAME"; do
-    echo "Database '$DB_NAME' Does Not Exist !!!"
+    error "Error: Database '$DB_NAME' Does Not Exist !!!"
     echo ""
-    read -p "Enter the Database Name: " DB_NAME
+    read -r -p "Enter the Database Name: " DB_NAME
   done
 
   echo ""
-  read -p "Are you sure you want to drop '$DB_NAME' database ??? [y/n] : " CHOICE
+  read -r -p "Are you sure you want to drop '$DB_NAME' database ??? [y/n] : " CHOICE
   if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
     echo ""
     echo "OK, Good choice :) ..."
@@ -118,7 +118,7 @@ drop_database() {
   fi
   
   echo ""
-  read -p "THIS IS THE LAST CHANCE !!! Are you sure you want to drop '$DB_NAME' database ??? [y/n] : " CHOICE
+  read -r -p "THIS IS THE LAST CHANCE !!! Are you sure you want to drop '$DB_NAME' database ??? [y/n] : " CHOICE
   if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
     echo ""
     echo "OK, I thought so :) ..."
@@ -130,34 +130,34 @@ drop_database() {
 
   clear
   if [ $? -eq 0 ]; then
-    echo "Database '$DB_NAME' Dropped Successfully !!!"
+    success "Database '$DB_NAME' Dropped Successfully !!!"
     return 0
   else
-    echo "Error: Database Dropping Failed !!!"
+    error "Error: Database Dropping Failed !!!"
     return 1
   fi
 }
 
 connect_database() {
-  echo "=== Connecting to a database ==="
-  echo "--------------------------------"
+  info "=== Connecting to a database ==="
+  info "--------------------------------"
   echo ""
 
   if [ -z "$(get_databases)" ]; then
-    echo "No Databases Available To Connect !!!"
+    success "No Databases Available To Connect !!!"
     return 0
   fi
 
-  read -p "Enter the Database Name: " DB_NAME
+  read -r -p "Enter the Database Name: " DB_NAME
 
   # Replace white spaces with _
   DB_NAME=$(echo $DB_NAME | tr ' ' '_')
 
   # Check if the database name exists
   until check_database_exists "$DB_NAME"; do
-    echo "Database '$DB_NAME' Does Not Exist !!!"
+    error "Error: Database '$DB_NAME' Does Not Exist !!!"
     echo ""
-    read -p "Enter the Database Name: " DB_NAME
+    read -r -p "Enter the Database Name: " DB_NAME
   done
 
   start_table_menu
@@ -170,8 +170,8 @@ connect_database() {
 while true
 do 
   clear
-  echo "********** Welcome to the Database Engine **********"
-  echo "----------------------------------------------------"
+  info "********** Welcome to the Database Engine **********"
+  info "----------------------------------------------------"
   echo ""
   echo "1) Create Database"
   echo "2) List All Databases"
@@ -180,32 +180,33 @@ do
   echo ""
   echo "5) Exit"
   echo ""
-  read -p ">> " CHOICE
+  read -r -p ">> " CHOICE
+
   case $CHOICE in 
     1)
       clear
       create_database
-      read -t 3
+      read -r -t 3
       ;;
     2)
       clear
       list_all_databases
-      read
+      read -r
       ;;
     3)
       clear
       connect_database
-      read -t 3
+      read -r -t 3
       ;;
     4)
       clear
       drop_database
-      read -t 3
+      read -r -t 3
       ;;
     5)
       clear
-      echo "****** Thanks For Using Our DBMS ******"
-      read -t 3
+      info "****** Thanks For Using Our DBMS ******"
+      read -r -t 3
       clear
       exit 0
       ;;

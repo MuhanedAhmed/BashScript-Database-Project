@@ -3,23 +3,23 @@
 create_table_structure() {
   local TABLE_NAME="$1"
   clear
-  echo "=== Creating Table '$TABLE_NAME' Structure ==="
-  echo "----------------------------------------------"
+  info "=== Creating Table '$TABLE_NAME' Structure ==="
+  info "----------------------------------------------"
   echo ""
-  echo "Available Datatypes are [num , str , date]"
+  info "Available Datatypes are [num , str , date]"
   echo ""
 
   # Array to store columns names and types
   local -A TB_COLUMNS
   local -a COLUMNS_ORDER
 
-  read -p "How many columns ? : " NUM_OF_COLUMNS
+  read -r -p "How many columns ? : " NUM_OF_COLUMNS
 
   # Check the number of columns
   until check_nonzero_positive_integer $NUM_OF_COLUMNS; do
-    echo "Error: Invalid Number of Columns !!!"
+    error "Error: Invalid Number of Columns !!!"
     echo ""
-    read -p "How many columns ? : " NUM_OF_COLUMNS
+    read -r -p "How many columns ? : " NUM_OF_COLUMNS
   done
 
   echo ""
@@ -29,24 +29,24 @@ create_table_structure() {
   do
     
     # Check the column name
-    read -p "Enter Column ($((i + 1))) Name: " COLUMN_NAME
+    read -r -p "Enter Column ($((i + 1))) Name: " COLUMN_NAME
     until validate_structure_name "Column" $COLUMN_NAME; do
       echo ""
-      read -p "Enter Column ($((i + 1))/$((NUM_OF_COLUMNS + 1))) Name: " COLUMN_NAME
+      read -r -p "Enter Column ($((i + 1))/$((NUM_OF_COLUMNS + 1))) Name: " COLUMN_NAME
     done
 
     # Check if the column name already exists
     until [[ -z "${TB_COLUMNS[$COLUMN_NAME]}" ]]; do
-        echo "Error: Column '$COLUMN_NAME' Already Exists !!!"
+        error "Error: Column '$COLUMN_NAME' Already Exists !!!"
         echo ""
-        read -p "Enter Column ($((i + 1))/$((NUM_OF_COLUMNS + 1))) Name: " COLUMN_NAME
+        read -r -p "Enter Column ($((i + 1))/$((NUM_OF_COLUMNS + 1))) Name: " COLUMN_NAME
     done
     
     # Check the column type
-    read -p "Enter Column ($COLUMN_NAME) Type [num , str , date]: " COLUMN_TYPE
+    read -r -p "Enter Column ($COLUMN_NAME) Type [num , str , date]: " COLUMN_TYPE
     until validate_column_type $COLUMN_TYPE; do
       echo ""
-      read -p "Enter Column ($COLUMN_NAME) Type [num , str , date]: " COLUMN_TYPE
+      read -r -p "Enter Column ($COLUMN_NAME) Type [num , str , date]: " COLUMN_TYPE
     done
     echo ""
 
@@ -55,16 +55,16 @@ create_table_structure() {
   done
 
   # Check if the user needs a primary key
-  read -p "Do you need a Primary Key ? [y/n]: " NEED_PRIMARY_KEY
+  read -r -p "Do you need a Primary Key ? [y/n]: " NEED_PRIMARY_KEY
   if [ "$NEED_PRIMARY_KEY" == "y" -o "$NEED_PRIMARY_KEY" == "Y" ]; then
     
-    read -p "Enter Primary Key: " PRIMARY_KEY
+    read -r -p "Enter Primary Key: " PRIMARY_KEY
     
     # Check the primary key
     until [[ -n "${TB_COLUMNS[$PRIMARY_KEY]}" ]]; do
-      echo "Error: Column '$PRIMARY_KEY' does not exist. Please enter a valid column name."
+      error "Error: Column '$PRIMARY_KEY' does not exist. Please enter a valid column name."
       echo ""
-      read -p "Enter Primary Key: " PRIMARY_KEY
+      read -r -p "Enter Primary Key: " PRIMARY_KEY
     done
   fi
 
@@ -95,22 +95,22 @@ create_table_structure() {
   if [ $? -eq 0 ]; then
     return 0
   else
-    echo "Error: Table Structure Creation Failed !!!"
+    error "Error: Table Structure Creation Failed !!!"
     return 1
   fi
 }
 
 create_table() {
-  echo "=== Creating a table ==="
-  echo "------------------------"
+  info "=== Creating a table ==="
+  info "------------------------"
   echo ""
 
-  read -p "Enter the Table Name: " TABLE_NAME
+  read -r -p "Enter the Table Name: " TABLE_NAME
 
   # Check the table name
   until validate_structure_name "Table" $TABLE_NAME; do
     echo ""
-    read -p "Enter the Table Name: " TABLE_NAME
+    read -r -p "Enter the Table Name: " TABLE_NAME
   done
 
   # Replace white spaces with _
@@ -118,9 +118,9 @@ create_table() {
 
   # Check if the table name already exists
   until ! check_table_exists $TABLE_NAME; do
-    echo "Table '$TABLE_NAME' Already Exists !!!"
+    error "Error: Table '$TABLE_NAME' Already Exists !!!"
     echo ""
-    read -p "Enter the Table Name: " TABLE_NAME
+    read -r -p "Enter the Table Name: " TABLE_NAME
   done
 
   # Create table structure
@@ -128,24 +128,24 @@ create_table() {
 
   if [ $? -eq 0 ]; then
     clear
-    echo "Table '$TABLE_NAME' Created Successfully !!!"
+    success "Table '$TABLE_NAME' Created Successfully !!!"
     return 0
   else
-    echo "Error: Table Creation Failed !!!"
-    read
+    error "Error: Table Creation Failed !!!"
+    read -r
     return 1
   fi
 }
 
 list_all_tables() {
-  echo "=== Listing Tables ==="
-  echo "----------------------"
+  info "=== Listing Tables ==="
+  info "----------------------"
   echo ""
 
   AVAILABLE_TABLES=($(get_tables))
 
   if [ ${#AVAILABLE_TABLES} -eq 0 ]; then
-    echo "No Tables Available !!!"
+    success "No Tables Available !!!"
   else
     echo "The Available Tables are : "
     echo ""
@@ -158,24 +158,45 @@ list_all_tables() {
 }
 
 drop_table() {
-  echo "=== Dropping a Table ==="
-  echo "------------------------"
+  info "=== Dropping a Table ==="
+  info "------------------------"
   echo ""
 
-  read -p "Enter the Table Name: " TABLE_NAME
+  if [ -z "$(get_tables)" ]; then
+    success "No Tables Available To Drop !!!"
+    return 0
+  fi
 
+  read -r -p "Enter the Table Name: " TABLE_NAME
+  
   # Replace white spaces with _
-  TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
+  TABLE_NAME=$(echo "$TABLE_NAME" | tr ' ' '_')
+
+  # Check if the table name exists
+  until check_table_exists "$TABLE_NAME"; do
+    error "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    echo ""
+    read -r -p "Enter the Table Name: " TABLE_NAME
+  done
+
+  echo ""
+  read -r -p "Are you sure you want to drop '$TABLE_NAME' table ??? [y/n] : " CHOICE
+  if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
+    echo ""
+    echo "OK, Good choice :) ..."
+    return 0
+  fi
   
-  # Check if the database name exists
-  check_table_exists $TABLE_NAME
-  
-  if [ $? -eq 0 ]; then
+  echo ""
+  read -r -p "THIS IS THE LAST CHANCE !!! Are you sure you want to drop '$TABLE_NAME' table ??? [y/n] : " CHOICE
+  if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
+    echo ""
+    echo "OK, I thought so :) ..."
+    return 0
+  else
     rm "./DBs/$DB_NAME/$TABLE_NAME.meta"
     rm "./DBs/$DB_NAME/$TABLE_NAME.data"
-    echo "TABLE '$TABLE_NAME' Dropped !!!"
-  else
-    echo "TABLE '$TABLE_NAME' Does Not Exist !!!"
+    success "TABLE '$TABLE_NAME' Dropped !!!"
   fi
 }
 
@@ -185,7 +206,7 @@ insert_data() {
   
   # Check if the meta file exists
   if [ ! -f "$META_FILE" ]; then
-    echo "Error: Unable to find '$TB_NAME'.meta file !!!"
+    error "Error: Unable to find '$TB_NAME'.meta file !!!"
     return 1
   fi
 
@@ -196,7 +217,7 @@ insert_data() {
 
   # Check if number of columns and types match
   [[ ${#TABLE_COLUMNS[@]} -eq ${#COLUMNS_TYPES[@]} ]] || {
-    echo "Error: Number of columns and types do not match !!!"
+    error "Error: Number of columns and types do not match !!!"
     return 1
   }
 
@@ -204,30 +225,30 @@ insert_data() {
   while true
   do
     clear
-    echo "=== Inserting into '$TB_NAME' table ==="
-    echo "------------------------------------------"
+    info "=== Inserting into '$TB_NAME' table ==="
+    info "------------------------------------------"
     echo ""
     
     # Ask user for data
     local -a DATA=()
     
     for ((i=0; i<${#TABLE_COLUMNS[@]}; i++)); do
-      read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+      read -r -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
       # Check the data type
       if [ "${COLUMNS_TYPES[i]}" == "str" ]; then
         until validate_string_input "$VALUE"; do
           echo ""
-          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+          read -r -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
         done
       elif [ "${COLUMNS_TYPES[i]}" == "num" ]; then
         until validate_number_input "$VALUE"; do
           echo ""
-          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+          read -r -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
         done
       elif [ "${COLUMNS_TYPES[i]}" == "date" ]; then
         until validate_date_input "$VALUE"; do
           echo ""
-          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+          read -r -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
         done
       fi
 
@@ -235,7 +256,7 @@ insert_data() {
       if [ -n "$PRIMARY_KEY" ] && [ "${TABLE_COLUMNS[i]}" == "$PRIMARY_KEY" ]; then
         until check_primary_key $TB_NAME $((i + 1)) $VALUE; do
           echo ""
-          read -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
+          read -r -p "Enter ${TABLE_COLUMNS[i]} : " VALUE
         done
       fi
 
@@ -248,13 +269,13 @@ insert_data() {
     
     clear
     if [ $? -eq 0 ]; then
-      echo "Data Inserted Successfully !!!"
+      success "Data Inserted Successfully !!!"
     else
-      echo "Error: Data Insertion Failed !!!"
+      error "Error: Data Insertion Failed !!!"
     fi
 
     echo ""
-    read -p "Do you want to insert more data ? [y/n]: " CHOICE
+    read -r -p "Do you want to insert more data ? [y/n]: " CHOICE
     if [ "$CHOICE" != "y" -a "$CHOICE" != "Y" ]; then
       return 0
     fi
@@ -262,21 +283,21 @@ insert_data() {
 }
 
 insert_into_table() {
-  echo "=== Inserting into a table ==="
-  echo "------------------------------"
+  info "=== Inserting into a table ==="
+  info "------------------------------"
   echo ""
 
   local TABLE_NAME=""
-  read -p "Enter the Table Name: " TABLE_NAME
+  read -r -p "Enter the Table Name: " TABLE_NAME
 
   # Replace white spaces with _
   TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
   
   # Check if the table name exists
   until check_table_exists $TABLE_NAME; do
-    echo "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    error "Error: Table '$TABLE_NAME' Does Not Exist !!!"
     echo ""
-    read -p "Enter the Table Name: " TABLE_NAME
+    read -r -p "Enter the Table Name: " TABLE_NAME
   done
   
   insert_data $TABLE_NAME
@@ -285,26 +306,26 @@ insert_into_table() {
     clear
     return 0
   else
-    echo "Error: Data Insertion Failed !!!"
-    read
+    error "Error: Data Insertion Failed !!!"
+    read -r
     return 1
   fi
 }
 
 select_from_table() {
-  echo "=== Selecting from a table ==="
-  echo "------------------------------"
+  info "=== Selecting from a table ==="
+  info "------------------------------"
   echo ""
-  read -p "Enter the Table Name: " TABLE_NAME
+  read -r -p "Enter the Table Name: " TABLE_NAME
 
   # Replace white spaces with _
   TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
 
   # Check if the table name exists
   until check_table_exists $TABLE_NAME; do
-    echo "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    error "Error: Table '$TABLE_NAME' Does Not Exist !!!"
     echo ""
-    read -p "Enter the Table Name: " TABLE_NAME
+    read -r -p "Enter the Table Name: " TABLE_NAME
   done
 
   # Fetching table's columns names
@@ -312,10 +333,10 @@ select_from_table() {
  
   declare -a Selected_Columns
   clear
-  echo "=== Selecting from '$TABLE_NAME' table ==="
-  echo "------------------------------------------"
+  info "=== Selecting from '$TABLE_NAME' table ==="
+  info "------------------------------------------"
   echo ""
-  read -p "Enter the Columns Names to Select or write '*' for all: " -a Selected_Columns
+  read -r -p "Enter the Columns Names to Select or write '*' for all: " -a Selected_Columns
   
   if [ "${Selected_Columns[0]}" == "*" ]; then
     Selected_Columns=("${TABLE_HEADERS[@]}")
@@ -324,8 +345,8 @@ select_from_table() {
   for i in "${!Selected_Columns[@]}"; do
       col="${Selected_Columns[i]}"
       until check_column_exists "${TABLE_HEADERS[@]}" "$col"; do
-          echo "Error: Column '$col' does not exist!"
-          read -p "Enter the Correct Column Name to Select: " col
+          error "Error: Column '$col' does not exist !!!"
+          read -r -p "Enter the Correct Column Name to Select: " col
       done
       Selected_Columns[i]="$col"
   done
@@ -351,23 +372,23 @@ select_from_table() {
   done
 
   declare -A Filters
-  read -p "Do you want to Filter the Data ? [y/n]: " CHOICE
+  read -r -p "Do you want to Filter the Data ? [y/n]: " CHOICE
   echo ""
   if [ "$CHOICE" == "y" -o "$CHOICE" == "Y" ]; then
     while true;
     do
-      read -p "Enter the Column Name to Filter: " COLUMN_NAME
+      read -r -p "Enter the Column Name to Filter: " COLUMN_NAME
       echo ""
       until check_column_exists "${TABLE_HEADERS[@]}" "$COLUMN_NAME"; do
           echo ""
-          echo "Error: Column '$COLUMN_NAME' does not exist!"
+          error "Error: Column '$COLUMN_NAME' does not exist !!!"
           echo ""
-          read -p "Enter the Correct Column Name to Select: " COLUMN_NAME
+          read -r -p "Enter the Correct Column Name to Select: " COLUMN_NAME
       done
-      read -p "Enter the Value to Filter: " VALUE
+      read -r -p "Enter the Value to Filter: " VALUE
       Filters[$COLUMN_NAME]=$VALUE
       echo ""
-      read -p "Do you want to Filter more data ? [y/n]: " CHOICE
+      read -r -p "Do you want to Filter more data ? [y/n]: " CHOICE
       echo ""
       if [ "$CHOICE" != "y" -a "$CHOICE" != "Y" ]; then
         break
@@ -401,46 +422,50 @@ select_from_table() {
   num_rows=$(echo "$result" | grep . | wc -l)
   if [ $num_rows -eq 0 ]; then
     clear
-    echo "No Data Found,try again !!!"
+    success "No Data Found, try again !!!"
   else
     echo -e "$(IFS=$'\t'; echo "${Selected_Columns[*]}")" | column -t
     echo "----------------------------------"
     echo "$result" | column -t  
     echo ""
-    echo "$num_rows Row Returned !!!" 
+    success "$num_rows Row Returned !!!" 
   fi
 }
 
 update_table() {
-  echo "=== Updating '$TABLE_NAME' table ==="
-  echo "------------------------------------------"
+  info "=== Updating '$TABLE_NAME' table ==="
+  info "------------------------------------------"
   echo ""
-  read -p "Enter the Table Name: " TABLE_NAME
+  read -r -p "Enter the Table Name: " TABLE_NAME
+  
   # Replace white spaces with _
   TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
+  
   # Check if the table name exists
   until check_table_exists $TABLE_NAME; do
-    echo "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    error "Error: Table '$TABLE_NAME' Does Not Exist !!!"
     echo ""
-    read -p "Enter the Table Name: " TABLE_NAME
+    read -r -p "Enter the Table Name: " TABLE_NAME
   done
+  
   # Fetching table's columns names
   TABLE_HEADERS=($(awk -F':' 'NR==1 { for (i=1; i<=NF; i++) print $i }' "./DBs/$DB_NAME/$TABLE_NAME.meta"))
 
   while true;
   do
     clear
-    echo "=== Updating '$TABLE_NAME' table ==="
-    echo "------------------------------------------"
+    info "=== Updating '$TABLE_NAME' table ==="
+    info "------------------------------------------"
     echo ""
-    read -p "Enter the Column Name to Filter: " COLUMN_NAME
+    read -r -p "Enter the Column Name to Filter: " COLUMN_NAME
     echo ""
     until check_column_exists "${TABLE_HEADERS[@]}" "$COLUMN_NAME"; do
         echo ""
-        echo "Error: Column '$COLUMN_NAME' does not exist!"
+        error "Error: Column '$COLUMN_NAME' does not exist!"
         echo ""
-        read -p "Enter the Correct Column Name to Select: " COLUMN_NAME
+        read -r -p "Enter the Correct Column Name to Select: " COLUMN_NAME
     done
+    
     # Find the column index
     for ((i=0; i<${#TABLE_HEADERS[@]}; i++)); do
       if [ "${TABLE_HEADERS[i]}" == "$COLUMN_NAME" ]; then
@@ -448,16 +473,21 @@ update_table() {
         break
       fi
     done
+    
     # Get the data from the column
     mapfile -t Selected_COL_DATA < <(awk -F':' '{print $'"$COL_INDEX_TO_UPDATE"'}' ./DBs/$DB_NAME/$TABLE_NAME.data)
+    
     echo "Available Data in '$COLUMN_NAME' Column:"
     echo "========================================="
+    
     for ((i=0; i<${#Selected_COL_DATA[@]}; i++)); do
       echo "$((i + 1))) ${Selected_COL_DATA[i]}"
     done
+    
     echo ""
 
-    read -p "Enter a value to update: " OLD_VALUE
+    read -r -p "Enter a value to update: " OLD_VALUE
+    
     #get index of OLD Value
     INDEX=$(awk -F':' -v value="$OLD_VALUE" -v col="$COL_INDEX_TO_UPDATE" '{
       if ($col == value) {
@@ -467,8 +497,10 @@ update_table() {
     }' ./DBs/$DB_NAME/$TABLE_NAME.data)
 
     until [ -n "$INDEX" ]; do
-      echo "Value is not selected"
-      read -p "Enter a value to update: " OLD_VALUE
+      
+      error "Value is not selected"
+      
+      read -r -p "Enter a value to update: " OLD_VALUE
       #get index of OLD Value
       INDEX=$(awk -F':' -v value="$OLD_VALUE" -v col="$COL_INDEX_TO_UPDATE" '{
         if ($col == value) {
@@ -478,11 +510,12 @@ update_table() {
       }' ./DBs/$DB_NAME/$TABLE_NAME.data)
     done
 
-    read -p "Enter the New Value: " NEW_VALUE
+    read -r -p "Enter the New Value: " NEW_VALUE
+    
     until [[ -n "$NEW_VALUE" ]]; do
-      echo "Error: Value cannot be empty !!!"
+      error "Error: Value cannot be empty !!!"
       echo ""
-      read -p "Enter the New Value: " NEW_VALUE
+      read -r -p "Enter the New Value: " NEW_VALUE
     done
     
     result=$(awk '
@@ -497,13 +530,13 @@ update_table() {
     clear
     if [ $? -ne 0 ]; then    
       clear  
-      echo "No Data Found,try again !!!"
+      success "No Data Found, try again !!!"
     else
       clear
-      echo "Data Updated Successfully !!!"
+      success "Data Updated Successfully !!!"
     fi
     echo ""
-    read -p "Do you want to Update more data ? [y/n]: " CHOICE
+    read -r -p "Do you want to Update more data ? [y/n]: " CHOICE
     if [ "$CHOICE" != "y" -a "$CHOICE" != "Y" ]; then
       return 0
     fi
@@ -517,23 +550,23 @@ delete_rows() {
   # Check if the user wants to delete all rows
   if [ -n "$ALL_ROWS" ]; then
     echo ""
-    read -p "Are you sure you want to delete ALL rows ??? [y/n] : " CHOICE
+    read -r -p "Are you sure you want to delete ALL rows ??? [y/n] : " CHOICE
     if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
       echo "OK, Good choice :) ..."
-      read -t 3
+      read -r -t 3
       return 0
     fi
     
     echo ""
-    read -p "THIS IS THE LAST CHANCE !!! Are you sure you want to delete ALL ROWS ??? [y/n] : " CHOICE
+    read -r -p "THIS IS THE LAST CHANCE !!! Are you sure you want to delete ALL ROWS ??? [y/n] : " CHOICE
     if [ "$CHOICE" != 'y' -a "$CHOICE" != 'Y' ]; then
       echo "OK, I thought so :) ..."
-      read -t 3
+      read -r -t 3
       return 0
     else
       echo "" > "./DBs/$DB_NAME/$TB_NAME.data"
       clear
-      echo "All rows were deleted successfully !!!"
+      success "All rows were deleted successfully !!!"
       return 0
     fi
   fi
@@ -543,8 +576,8 @@ delete_rows() {
 
   # Prompt the user for a specific deletion criteria
   clear
-  echo "=== Deleting Specific Rows From '$TB_NAME' Table ==="
-  echo "----------------------------------------------------"
+  info "=== Deleting Specific Rows From '$TB_NAME' Table ==="
+  info "----------------------------------------------------"
   echo ""
 
   # Extract column names from the metadata file
@@ -559,11 +592,11 @@ delete_rows() {
   echo ""
 
   # Validate the column name
-  read -p "Enter the column name to filter rows for deletion: " COLUMN_NAME
+  read -r -p "Enter the column name to filter rows for deletion: " COLUMN_NAME
   until check_column_exists "${TABLE_COLUMNS[@]}" "$COLUMN_NAME"; do
-    echo "Error: Invalid column name !!!"
+    error "Error: Invalid column name !!!"
     echo ""
-    read -p "Enter the column name to filter rows for deletion: " COLUMN_NAME
+    read -r -p "Enter the column name to filter rows for deletion: " COLUMN_NAME
   done
   
   # Find the column index
@@ -577,17 +610,17 @@ delete_rows() {
 
   # Delete rows matching the criteria
   echo ""
-  read -p "Enter the value to match for deletion: " VALUE
+  read -r -p "Enter the value to match for deletion: " VALUE
 
   # Check if the value is empty
   until [[ -n "$VALUE" ]]; do
-    echo "Error: Value cannot be empty !!!"
+    error "Error: Value cannot be empty !!!"
     echo ""
-    read -p "Enter the value to match for deletion: " VALUE
+    read -r -p "Enter the value to match for deletion: " VALUE
   done
 
   echo ""
-  read -p "Should the match be exact? [y/n]: " EXACT_MATCH
+  read -r -p "Should the match be exact? [y/n]: " EXACT_MATCH
   
   ORIGINAL_LINES_COUNT=$(wc -l < "$DATA_FILE")
   
@@ -605,24 +638,24 @@ delete_rows() {
   NEW_LINES_COUNT=$(wc -l < "$DATA_FILE")
 
   clear
-  echo "$((ORIGINAL_LINES_COUNT - NEW_LINES_COUNT)) rows were deleted successfully !!!"
+  success "$((ORIGINAL_LINES_COUNT - NEW_LINES_COUNT)) rows were deleted successfully !!!"
 }
 
 delete_from_table() {
-  echo "=== Delete from a table ==="
-  echo "---------------------------"
+  info "=== Delete from a table ==="
+  info "---------------------------"
   echo ""
 
-  read -p "Enter the Table Name: " TABLE_NAME
+  read -r -p "Enter the Table Name: " TABLE_NAME
 
   # Replace white spaces with _
   TABLE_NAME=$(echo $TABLE_NAME | tr ' ' '_')
   
   # Check if the table name exists
   until check_table_exists $TABLE_NAME; do
-    echo "Error: Table '$TABLE_NAME' Does Not Exist !!!"
+    error "Error: Table '$TABLE_NAME' Does Not Exist !!!"
     echo ""
-    read -p "Enter the Table Name: " TABLE_NAME
+    read -r -p "Enter the Table Name: " TABLE_NAME
   done
 
   while true; do
@@ -634,7 +667,7 @@ delete_from_table() {
     echo "2) Delete All Rows"
     echo ""
 
-    read -p "$TABLE_NAME>> " CHOICE
+    read -r -p "$TABLE_NAME>> " CHOICE
     case $CHOICE in 
       1)
         delete_rows $TABLE_NAME
@@ -656,15 +689,15 @@ start_table_menu() {
 
   # Check if the database name is set
   if [ -z "$DB_NAME" ]; then
-    echo "Error: Database name is not set !!!"
+    error "Error: Database name is not set !!!"
     return 1
   fi
   
   while true
   do 
     clear
-    echo "********** Connected to '$DB_NAME' **********"
-    echo "---------------------------------------------"
+    info "********** Connected to '$DB_NAME' **********"
+    info "---------------------------------------------"
     echo ""
     echo "1) Create Table"
     echo "2) List All Tables"
@@ -676,47 +709,47 @@ start_table_menu() {
     echo ""
     echo "8) Disconnect"
     echo ""
-    read -p "$DB_NAME>> " CHOICE
+    read -r -p "$DB_NAME>> " CHOICE
     case $CHOICE in 
       1)
         clear
         create_table
-        read -t 3
+        read -r -t 3
         ;;
       2)
         clear
         list_all_tables
-        read
+        read -r
         ;;
       3)
         clear
         drop_table
-        read -t 3
+        read -r -t 3
         ;;
       4)
         clear
         insert_into_table
-        echo "Data Insertion Finished !!!"
-        read -t 3
+        success "Data Insertion Finished !!!"
+        read -r -t 3
         ;;
       5)
         clear
         select_from_table
-        read
+        read -r
         ;;
       6)
         clear
         delete_from_table
-        read
+        read -r
         ;;
       7)
         clear
         update_table
-        read
+        read -r
         ;;
       8)
         clear
-        echo "Disconnecting from '$DB_NAME' ..."
+        success "Disconnecting from '$DB_NAME' ..."
         return 0
         ;;
       *)

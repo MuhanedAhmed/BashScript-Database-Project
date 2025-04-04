@@ -1,5 +1,19 @@
 #! /bin/bash
 
+# ---------------------------- Colored Echo Messages ---------------------------- #
+
+error() { 
+  echo -e "\033[0;31m$1\033[0m";
+}
+
+success() { 
+  echo -e "\033[0;32m$1\033[0m"
+}
+
+info() { 
+  echo -e "\033[0;34m$1\033[0m"
+}
+
 # ---------------------------- Helper Functions ---------------------------- #
 
 get_databases() {
@@ -74,7 +88,7 @@ check_primary_key() {
 
   # Check if the data file exists
   if [[ ! -f "$DATA_FILE" ]]; then
-    echo "Error: Enable to find '$TABLE_NAME'.data file !!!"
+    error "Error: Enable to find '$TABLE_NAME'.data file !!!"
     return 1
   fi
 
@@ -88,7 +102,7 @@ check_primary_key() {
   ' "$DATA_FILE"; then
     return 0
   else
-    echo "Error: Primary key value '$PRIMARY_KEY_VALUE' already exists !!!"
+    error "Error: Primary key value '$PRIMARY_KEY_VALUE' already exists !!!"
     return 1
   fi
 }
@@ -101,25 +115,25 @@ validate_structure_name() {
 
   # Check if the structure name is empty
   if [[ -z $STRUCTURE_NAME ]]; then
-    echo "Error: $STRUCTURE_TYPE name cannot be empty !!!"
+    error "Error: $STRUCTURE_TYPE name cannot be empty !!!"
     return 1
   fi
 
   # Check if the structure name is greater than 12 characters
   if [[ ${#STRUCTURE_NAME} -gt 12 ]]; then
-    echo "Error: $STRUCTURE_TYPE name cannot exceed 12 characters !!!"
+    error "Error: $STRUCTURE_TYPE name cannot exceed 12 characters !!!"
     return 1
   fi
 
   # Check for invalid characters in the structure name
   if [[ ! $STRUCTURE_NAME =~ ^[a-zA-Z0-9_#@$]*$ ]]; then
-    echo "Error: $STRUCTURE_TYPE name can only contain alphabets, numbers and [ '$' , '#' , '@' ] !!!"
+    error "Error: $STRUCTURE_TYPE name can only contain alphabets, numbers and [ '$' , '#' , '@' ] !!!"
     return 1
   fi
 
   # Check the start of the structure name (only alphabets)
   if [[ ! $STRUCTURE_NAME =~ ^[a-zA-Z] ]]; then
-    echo "Error: $STRUCTURE_TYPE name must start with an alphabet !!!"
+    error "Error: $STRUCTURE_TYPE name must start with an alphabet !!!"
     return 1
   fi
 
@@ -128,12 +142,12 @@ validate_structure_name() {
 
 validate_column_type() {
   if [ -z "$1" ]; then
-    echo "Error: Column Type Cannot Be Empty !!!"
+    error "Error: Column Type Cannot Be Empty !!!"
     return 1
   fi
 
   if [ "$1" != "num" -a "$1" != "str" -a "$1" != "date" ]; then
-    echo "Error: Invalid Column Type !!!"
+    error "Error: Invalid Column Type !!!"
     return 1
   fi
 
@@ -145,13 +159,13 @@ validate_string_input() {
 
   # Check if the string is empty
   if [[ -z $STRING ]]; then
-    echo "Error: String cannot be empty !!!"
+    error "Error: String cannot be empty !!!"
     return 1
   fi
 
   # Check if the string contains ':' character
   if [[ "$STRING" =~ : ]]; then
-    echo "Error: String cannot contain ':' character !!!"
+    error "Error: String cannot contain ':' character !!!"
     return 1
   fi
 
@@ -163,7 +177,7 @@ validate_number_input() {
 
   # Check if the number is empty
   if [[ -z $NUMBER ]]; then
-    echo "Error: Number cannot be empty !!!"
+    error "Error: Number cannot be empty !!!"
     return 1
   fi
 
@@ -171,7 +185,7 @@ validate_number_input() {
   if [[ $NUMBER =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
     return 0
   else
-    echo "Error: Invalid Number Format !!!"
+    error "Error: Invalid Number Format !!!"
     return 1
   fi
 }
@@ -181,7 +195,7 @@ validate_date_input() {
 
   # Check if the date is empty
   if [[ -z $DATE ]]; then
-    echo "Error: Date cannot be empty !!!"
+    error "Error: Date cannot be empty !!!"
     return 1
   fi
 
@@ -189,8 +203,8 @@ validate_date_input() {
   if [[ $DATE =~ ^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-[0-9]{4}$ ]]; then
     return 0
   else
-    echo "Error: Invalid Date Format !!!"
-    echo "Date Format: DD-MM-YYYY"
+    error "Error: Invalid Date Format !!!"
+    info "Date Format: DD-MM-YYYY"
     return 1
   fi
 }
