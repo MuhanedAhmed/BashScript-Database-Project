@@ -30,9 +30,11 @@ create_table_structure() {
     
     # Check the column name
     read -r -p "Enter Column ($((i + 1))) Name: " COLUMN_NAME
+    COLUMN_NAME=$(trim_whitespace "$COLUMN_NAME")
     until validate_structure_name "Column" $COLUMN_NAME; do
       echo ""
       read -r -p "Enter Column ($((i + 1))/$((NUM_OF_COLUMNS + 1))) Name: " COLUMN_NAME
+      COLUMN_NAME=$(trim_whitespace "$COLUMN_NAME")
     done
 
     # Check if the column name already exists
@@ -40,13 +42,16 @@ create_table_structure() {
         error "Error: Column '$COLUMN_NAME' Already Exists !!!"
         echo ""
         read -r -p "Enter Column ($((i + 1))/$((NUM_OF_COLUMNS + 1))) Name: " COLUMN_NAME
+        COLUMN_NAME=$(trim_whitespace "$COLUMN_NAME")
     done
     
     # Check the column type
     read -r -p "Enter Column ($COLUMN_NAME) Type [num , str , date]: " COLUMN_TYPE
+    COLUMN_TYPE=$(trim_whitespace "$COLUMN_TYPE")
     until validate_column_type $COLUMN_TYPE; do
       echo ""
       read -r -p "Enter Column ($COLUMN_NAME) Type [num , str , date]: " COLUMN_TYPE
+      COLUMN_TYPE=$(trim_whitespace "$COLUMN_TYPE")
     done
     echo ""
 
