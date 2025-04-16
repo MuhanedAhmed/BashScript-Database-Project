@@ -158,3 +158,14 @@ validate_date_input() {
     return 1
   fi
 }
+
+trim_whitespace() {
+  local input="$1"
+  
+  input="${input##[[:space:]]}"
+  input="${input%%[[:space:]]}"
+
+  input=$(echo "$input" | tr ' ' '_')
+  
+  echo "$input"
+}

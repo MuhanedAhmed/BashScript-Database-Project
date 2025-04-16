@@ -24,6 +24,7 @@ create_table_structure() {
     fi
 
     local COLUMN_NAME=$(echo "$COLUMN_DATA" | cut -d ':' -f 1)
+    COLUMN_NAME=$(trim_whitespace "$COLUMN_NAME")
     local COLUMN_TYPE=$(echo "$COLUMN_DATA" | cut -d ':' -f 2)
 
     # Check column name
